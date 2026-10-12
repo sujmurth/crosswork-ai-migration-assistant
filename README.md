@@ -2,6 +2,9 @@
 
 AI‑assisted network migrations on **Cisco Crosswork AI (CW AI)**, driven conversationally and executed as standards‑based **CNCF Serverless Workflows** via **CWM** + **NSO golden‑config**.
 
+## 🎥 Demo recording
+[Watch the demo on Vidcast](https://app.vidcast.io/share/cbb2ddf9-8823-4b66-97ae-92942f5838e3?playerMode=vidcast)
+
 Two use cases:
 1. **Brownfield MPLS/LDP → SRv6** migration with L2/L3VPN services (dual‑plane cutover, hitless rollback).
 2. **QoS migration ASR 9000 → Cisco 8000** (extract → translate → push → verify → correct).
