@@ -1,0 +1,111 @@
+{
+  "workflowId": "32bc17dc-52f7-4ac0-8794-67c8c473c3fd",
+  "createdAt": "2026-07-17T16:28:33.590606Z",
+  "updatedAt": "2026-08-11T16:39:49.581236Z",
+  "name": "webexApprovalGate",
+  "version": "1.0",
+  "description": "Interactive Webex approval gate. 1) posts a 'proceed / stop' question to the Webex room (via webexNotifyMigration); 2) waits for the inbound 'webex-approval' CloudEvent carrying the user's reply { text, personEmail }; 3) if the reply matches proceed|approve|continue|yes|go => returns decision=proceed and the caller advances; any other reply (incl. 'stop'/'no') re-notifies 'HELD' and loops back to waiting, so the workflow stays paused at the gate until the user later replies 'proceed'. REQUIRES a Webex->CWM webhook/bot that emits the 'webex-approval' event, correlated to this run.",
+  "definition": {
+    "id": "webexApprovalGate-1.0",
+    "name": "webexApprovalGate",
+    "start": "proceed",
+    "events": [
+      {
+        "kind": "consumed",
+        "name": "webex-approval",
+        "type": "cisco.cwm.webex.approval",
+        "source": "webex-bot"
+      }
+    ],
+    "states": [
+      {
+        "name": "askDecision",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "note": "Posts the proceed/stop question to Webex and waits for the human reply."
+        },
+        "transition": "waitDecision",
+        "stateDataFilter": {
+          "input": "${ . + { notifyStatus: \"AWAITING DECISION \\u2014 reply 'proceed' to continue or 'stop' to hold\" } }"
+        }
+      },
+      {
+        "name": "waitDecision",
+        "type": "event",
+        "metadata": {
+          "note": "Blocks until a Webex reply arrives as the 'webex-approval' event (posted by the Webex bot/webhook)."
+        },
+        "onEvents": [
+          {
+            "eventRefs": [
+              "webex-approval"
+            ],
+            "eventDataFilter": {
+              "data": "${ .data }",
+              "toStateData": "${ .approval }"
+            }
+          }
+        ],
+        "transition": "decide"
+      },
+      {
+        "name": "decide",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ ( .approval.text // .approval.message // .approval.markdown // \"\" ) | ascii_downcase | test(\"proceed|approve|continue|^\\\\s*yes\\\\s*$|^\\\\s*go\\\\s*$\") }",
+            "transition": "proceed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "holdAndReAsk"
+        }
+      },
+      {
+        "name": "holdAndReAsk",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "note": "Reply was 'stop'/'no'/unrecognized. Workflow HELD at this gate; re-notifies and waits again for a later 'proceed'."
+        },
+        "transition": "waitDecision",
+        "stateDataFilter": {
+          "input": "${ . + { notifyStatus: \"STOPPED / HELD \\u2014 workflow paused at this gate. Reply 'proceed' on Webex when ready to continue to the next phase.\" } }"
+        }
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "proceed",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . + { decision: \"proceed\", approvedBy: ( .approval.personEmail // .approval.person // \"webex-user\" ) } }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT30S",
+        "multiplier": 1,
+        "maxAttempts": 1
+      }
+    ],
+    "version": "1.0",
+    "description": "Interactive Webex approval gate. 1) posts a 'proceed / stop' question to the Webex room (via webexNotifyMigration); 2) waits for the inbound 'webex-approval' CloudEvent carrying the user's reply { text, personEmail }; 3) if the reply matches proceed|approve|continue|yes|go => returns decision=proceed and the caller advances; any other reply (incl. 'stop'/'no') re-notifies 'HELD' and loops back to waiting, so the workflow stays paused at the gate until the user later replies 'proceed'. REQUIRES a Webex->CWM webhook/bot that emits the 'webex-approval' event, correlated to this run.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "webex",
+    "approval",
+    "chatops",
+    "interactive",
+    "SRv6-Migration"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "0a59c7d244dcf6756dae866069732596f703341ace79ef773798e6a2f323f0e0"
+}

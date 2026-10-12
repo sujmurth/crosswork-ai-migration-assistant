@@ -1,0 +1,215 @@
+{
+  "workflowId": "e5106cce-f01d-483b-a3c6-75108a02a3ea",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-08T08:02:31.581314Z",
+  "name": "05.migrateL3VPN",
+  "version": "1.0",
+  "description": "Migrate an existing L3VPN service to SRv6",
+  "definition": {
+    "id": "migrateL3VPN-1.0",
+    "name": "05.migrateL3VPN",
+    "start": "getClients",
+    "errors": [
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "NSOError",
+        "description": "NSOErr: NSO Data Error"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "resourceUnauthorized",
+        "description": "NSOErr: Resource Unauthorized"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "entityNotFound",
+        "description": "NSOErr: Entity Not Found"
+      },
+      {
+        "code": "HTTP_STATUS_409",
+        "name": "resourceExists",
+        "description": "NSOErr: Resource already exists"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "noRouteToHost",
+        "description": "NSOErr: No Route to NSO host"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "clients": [
+            {
+              "name": "node-1"
+            },
+            {
+              "name": "node-2"
+            },
+            {
+              "name": "node-4"
+            }
+          ]
+        },
+        "name": "getClients",
+        "type": "inject",
+        "transition": "loopClients"
+      },
+      {
+        "end": true,
+        "mode": "sequential",
+        "name": "loopClients",
+        "type": "foreach",
+        "actions": [
+          {
+            "name": "applyCtSrv6",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${ {\"golden-config:golden-config\": {\"application\": [ {\"device\": .client.name, \"jinja-template\": {\"template\": \"ct-srv6\", \"version\": \"1\"}, \"name\": (\"cwm-gc-ct-srv6-\" + .client.name), \"variable\": [ {\"name\": \"local_as\", \"value\": \"65000\"}, {\"name\": \"vrf_name\", \"value\": \"vpn-101\"}, {\"name\": \"address_family\", \"value\": \"ipv4\"}, {\"name\": \"mpls_alloc\", \"value\": \"enable\"}, {\"name\": \"locator_name\", \"value\": \"MAIN\"}, {\"name\": \"alloc_mode\", \"value\": \"per-vrf\"} ] } ]}} }",
+                  "path": "restconf/data/golden-config:golden-config?dry-run=native",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ],
+        "iterationParam": "client",
+        "inputCollection": "${ .clients }"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfGet",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Get"
+      },
+      {
+        "name": "NSO.RestconfPost",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "NSO.RestconfPut",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Put"
+      },
+      {
+        "name": "NSO.RestconfPatch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      },
+      {
+        "name": "NSO.Connect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.Connect"
+      },
+      {
+        "name": "NSO.Disconnect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.Disconnect"
+      },
+      {
+        "name": "NSO.CheckSync",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CheckSync"
+      },
+      {
+        "name": "NSO.GetDeviceList",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.GetDeviceList"
+      },
+      {
+        "name": "NSO.ShowConfig",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowConfig"
+      },
+      {
+        "name": "NSO.SyncFrom",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncFrom"
+      },
+      {
+        "name": "NSO.SyncTo",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncTo"
+      },
+      {
+        "name": "NSO.CompareConfig",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CompareConfig"
+      },
+      {
+        "name": "NSO.FetchSshHostKeys",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.FetchSshHostKeys"
+      },
+      {
+        "name": "NSO.SetAdminState",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SetAdminState"
+      },
+      {
+        "name": "NSO.ShowPlatformInfo",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowPlatformInfo"
+      }
+    ],
+    "description": "Migrate an existing L3VPN service to SRv6",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "SRv6",
+    "NSO"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "6e09b7ecb0b6cceb09f1fc7027f62e9a9a4d4b00f492d5e1ad077bb82243c0c6"
+}

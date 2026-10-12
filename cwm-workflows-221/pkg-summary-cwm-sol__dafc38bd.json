@@ -1,0 +1,379 @@
+{
+  "workflowId": "dafc38bd-eab8-4710-8d0e-4d82f33e35a3",
+  "createdAt": "2026-02-18T01:36:29.346178Z",
+  "updatedAt": "2026-06-29T21:45:15.646231Z",
+  "name": "pkg-summary-cwm-sol",
+  "version": "2.1.0",
+  "description": "Verifies if commited and active packages are same. If there is a mismatch, then a \"warning\" status is returned with the mismatched package. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "pkg-summary-cwm-sol",
+    "name": "pkg-summary-cwm-sol",
+    "start": "check-device-family",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-lintd",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") }",
+            "transition": "inject-template-and-expressions-lintd"
+          },
+          {
+            "name": "check-exr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") }",
+            "transition": "inject-template-and-expressions-exr"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "data": {
+          "commands": [
+            {
+              "command": "show install active summary",
+              "cmdOrder": 1,
+              "template": "Value Required Package (\\S+)\nValue Version (\\S+)\n\nStart\n  ^-{10,}\\s+\\-{10,} -> Packages\n\nPackages\n  ^${Package}\\s+${Version} -> Record"
+            },
+            {
+              "command": "show install committed summary",
+              "cmdOrder": 2,
+              "template": "Value Required Package (\\S+)\nValue Version (\\S+)\n\nStart\n  ^-{10,}\\s+\\-{10,} -> Packages\n\nPackages\n  ^${Package}\\s+${Version} -> Record"
+            }
+          ],
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Package summary check failed due to package inconsistency.",
+              "condition": "((. | length == 0) or (if .[0] | type == \"object\" then (.[0].Package as $activate_pkg | .[1].Package as $commit_pkg | $activate_pkg != $commit_pkg) else (if ((.[0] | map(select(.Package != \"Active\")) | map(.Package)) as $activate_pkgs | (.[1] | map(select(.Package != \"Committed\")) | map(.Package)) as $commit_pkgs | all($activate_pkgs[]; . as $item | $commit_pkgs | contains([$item])) and all($commit_pkgs[]; . as $item | $activate_pkgs | contains([$item]))) then false else true end) end))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-lintd",
+        "type": "inject",
+        "transition": "check-xr-package-summary"
+      },
+      {
+        "data": {
+          "commands": [
+            {
+              "command": "show install active summary",
+              "cmdOrder": 1,
+              "template": "Value Required Package ((ncs|asr|xr)\\S+)\n\nStart\n  ^\\s+${Package} -> Record"
+            },
+            {
+              "command": "show install committed summary",
+              "cmdOrder": 2,
+              "template": "Value Required Package ((ncs|asr|xr)\\S+)\n\nStart\n  ^\\s+${Package} -> Record"
+            }
+          ],
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Package summary check failed due to package inconsistency.",
+              "condition": "((. | length ==0) or (if .[0] | type == \"object\" then (.[0].Package as $activate_pkg | .[1].Package as $commit_pkg | $activate_pkg != $commit_pkg) else (if ((.[0] | map(select(.Package != \"Active\")) | map(.Package)) as $activate_pkgs | (.[1] | map(select(.Package != \"Committed\")) | map(.Package)) as $commit_pkgs | all($activate_pkgs[]; . as $item | $commit_pkgs | contains([$item])) and all($commit_pkgs[]; . as $item | $activate_pkgs | contains([$item]))) then false else true end) end))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-exr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for installed summary check for XR 5k devices"
+            }
+          ]
+        },
+        "transition": "check-xr-package-summary"
+      },
+      {
+        "name": "check-xr-package-summary",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-multi-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\",  \"rak-resource\": \"cwm.sol.system.util\", \"commands\": .commands, \"expressions\": .expressions })}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"warning\" then true else false end}",
+            "transition": "return-warning"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Package summary check passed\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-stash",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${.stash = ((.stash[0] - .stash[1]) + (.stash[1] - .stash[0]))}"
+        }
+      },
+      {
+        "name": "return-warning",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "set-stash"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"warning\", message: \"package summary check has ended with warnings as activated and committed packages are not same\", stash: (if .rakutilExecutorData.stash.output | length == 1 then [.rakutilExecutorData.stash.output[0], .rakutilExecutorData.stash.output[0]] else .rakutilExecutorData.stash.output end)}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"package summary check failed\" end)}}"
+        }
+      },
+      {
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Exited abnormally.\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": {
+        "activated": [
+          {
+            "Package": "xr-8000-l2mcast",
+            "Version": "7.8.2v1.0.0-1"
+          },
+          {
+            "Package": "xr-8000-mcast",
+            "Version": "7.8.2v1.0.0-1"
+          }
+        ]
+      }
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Verifies if commited and active packages are same. If there is a mismatch, then a \"warning\" status is returned with the mismatched package. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "pkgSummaryCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "fb2a685f993d847b376ef2ecaffc1382899a6eb3112ed15de12dbc36a728b364"
+}

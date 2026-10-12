@@ -1,0 +1,88 @@
+{
+  "workflowId": "156c82b7-6a3f-484f-9146-c7cd068c0422",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-08T08:02:30.738036Z",
+  "name": "04a.createRRv6Policy-50",
+  "version": "1.0",
+  "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
+  "definition": {
+    "id": "updateRRv6Policy-1.0",
+    "name": "04a.createRRv6Policy-50",
+    "start": "getClients",
+    "states": [
+      {
+        "data": {
+          "clients": [
+            {
+              "name": "node-2"
+            },
+            {
+              "name": "node-4"
+            }
+          ]
+        },
+        "name": "getClients",
+        "type": "inject",
+        "transition": "loopClients"
+      },
+      {
+        "end": true,
+        "mode": "sequential",
+        "name": "loopClients",
+        "type": "foreach",
+        "actions": [
+          {
+            "name": "applyL3vpn",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${ {\"golden-config:golden-config\": {\"application\": [ {\"device\": .client.name, \"jinja-template\": {\"template\": (\"srv6-l3vpn-node\" + (.client.name | ltrimstr(\"node-\"))), \"version\": \"1\"}, \"name\": (\"cwm-gc-l3vpn-\" + .client.name)} ]}} }",
+                  "path": "restconf/data/golden-config:golden-config?dry-run=native",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ],
+        "iterationParam": "client",
+        "inputCollection": "${ .clients }"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfPatch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      }
+    ],
+    "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "step-7a",
+    "RRv6",
+    "step-7h"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "92cbc30e7c474b02ddb29c0d2144b372dfbc3b0abbc9639740c899ba3770d97c"
+}

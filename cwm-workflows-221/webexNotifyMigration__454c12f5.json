@@ -1,0 +1,86 @@
+{
+  "workflowId": "454c12f5-bdfc-41ea-aa2d-5dd5fd87ec9a",
+  "createdAt": "2026-07-17T16:28:33.590606Z",
+  "updatedAt": "2026-07-24T23:37:43.950235Z",
+  "name": "webexNotifyMigration",
+  "version": "1.0",
+  "description": "Secure, migration-aware Webex notifier. Reads WEBEX_ROOM_ID and WEBEX_ACCESS_TOKEN from the workflow's runtime input/state (NOT hardcoded \u2014 supply via a CWM secret/input or the 'webex' resource). Auto-summarizes the latest pre/post check result already in state (.postResult or .preResult): phase, PASS count / total, and the failed-check list (name@node). Callers may override the headline via .notifyPhase and .notifyStatus.",
+  "definition": {
+    "id": "webexNotifyMigration-1.0",
+    "name": "webexNotifyMigration",
+    "start": "buildMessage",
+    "states": [
+      {
+        "name": "buildMessage",
+        "type": "operation",
+        "actions": [],
+        "transition": "sendNotification",
+        "stateDataFilter": {
+          "output": "${ ( .postResult // .preResult // {} ) as $r | { WEBEX_ROOM_ID: .WEBEX_ROOM_ID, WEBEX_ACCESS_TOKEN: .WEBEX_ACCESS_TOKEN, _phase: ( .notifyPhase // $r.phase // \"SRv6 Migration\" ), _status: ( .notifyStatus // ( if ($r.allPass == true) then \"PASS\" elif ($r.allPass == false) then \"FAILED\" else \"INFO\" end ) ), _total: ( ( $r.results // [] ) | length ), _passed: ( ( $r.passed // [] ) | length ), _failedList: ( ( $r.failed // [] ) | map( .name + \"@\" + .node ) | join(\", \") ) } | . + { webexBody: { markdown: ( \"**SRv6 Migration \\u2014 \" + ._phase + \"**  \\n\\nStatus: **\" + ._status + \"**  \\nChecks: \" + ( ._passed | tostring ) + \"/\" + ( ._total | tostring ) + \" PASS\" + ( if ( ._failedList | length ) > 0 then \"  \\n\\u274c FAILED: \" + ._failedList else \"\" end ) + \"  \\n\" ), roomId: .WEBEX_ROOM_ID } } }"
+        }
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "sendNotification",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "sendNotification",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ .webexBody | tojson }",
+                  "path": "/v1/messages",
+                  "header": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer ${ .WEBEX_ACCESS_TOKEN }"
+                  }
+                },
+                "config": {
+                  "resourceId": "webex"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ {} }",
+              "toStateData": "${ .webexResult }"
+            }
+          }
+        ]
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT30S",
+        "multiplier": 1,
+        "maxAttempts": 1
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "Secure, migration-aware Webex notifier. Reads WEBEX_ROOM_ID and WEBEX_ACCESS_TOKEN from the workflow's runtime input/state (NOT hardcoded \u2014 supply via a CWM secret/input or the 'webex' resource). Auto-summarizes the latest pre/post check result already in state (.postResult or .preResult): phase, PASS count / total, and the failed-check list (name@node). Callers may override the headline via .notifyPhase and .notifyStatus.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "webex",
+    "notification",
+    "SRv6-Migration",
+    "secure"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "0d3e75f2670e4d096a5e3f78479bcc35fc1dcd592b04d746de3a085745b336bd"
+}

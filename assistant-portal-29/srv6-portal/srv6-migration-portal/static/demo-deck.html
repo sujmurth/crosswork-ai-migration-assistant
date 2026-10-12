@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI-Driven MPLS → SRv6 Migration — Crosswork Network Controller</title>
+<style>
+  :root{
+    --bg:#0b1020; --bg2:#111a33; --ink:#eaf0ff; --dim:#9fb0d6; --line:#25335c;
+    --accent:#00bceb;         /* Cisco cyan */
+    --accent2:#6c5ce7;        /* violet     */
+    --green:#2ecc71; --amber:#f1c40f; --red:#ff6b6b;
+    --card:#0f1730;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 800px at 80% -10%, #17245010, transparent),
+               radial-gradient(1000px 700px at -10% 110%, #6c5ce71a, transparent),
+               var(--bg);
+    color:var(--ink);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  .deck{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+    padding:56px 88px 76px;opacity:0;transform:translateY(14px);
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  .slide.active{display:flex;opacity:1;transform:none}
+  .kicker{color:var(--accent);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:13px;margin-bottom:10px}
+  h1{font-size:52px;line-height:1.05;margin:0 0 14px;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:34px;line-height:1.1;margin:0 0 22px;font-weight:800;letter-spacing:-.01em}
+  h1 .grad,h2 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  p.lead{font-size:21px;color:var(--dim);max-width:960px;line-height:1.5}
+  ul{margin:8px 0 0;padding:0;list-style:none}
+  li{font-size:21px;line-height:1.45;margin:12px 0;padding-left:34px;position:relative}
+  li::before{content:"";position:absolute;left:0;top:11px;width:12px;height:12px;border-radius:3px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  li small{color:var(--dim);font-size:16px}
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:linear-gradient(180deg,var(--card),#0b1226);border:1px solid var(--line);
+    border-radius:16px;padding:18px 20px;box-shadow:0 12px 40px #0006}
+  .card h3{margin:0 0 7px;font-size:19px}
+  .card p{margin:0;color:var(--dim);font-size:15px;line-height:1.42}
+  .tag{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--accent);border:1px solid #1f3160;background:#0c1832;border-radius:999px;padding:5px 12px;margin:0 8px 8px 0}
+  .flow{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap;margin-top:8px}
+  .step{flex:1 1 0;min-width:150px;background:#0d1730;border:1px solid var(--line);border-radius:14px;padding:16px}
+  .step .n{font-size:13px;color:var(--accent);font-weight:800}
+  .step .t{font-size:17px;margin-top:6px;font-weight:700}
+  .step .d{font-size:14px;color:var(--dim);margin-top:6px;line-height:1.4}
+  .arrow{align-self:center;color:#3a4c82;font-size:24px}
+  .mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  .metric{font-size:52px;font-weight:800;letter-spacing:-.02em}
+  .metric.g{color:var(--green)} .metric.c{color:var(--accent)}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--dim);
+    border:1px solid var(--line);border-radius:999px;padding:6px 12px;margin:4px 8px 0 0}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .dot.a{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+  .topo{display:flex;gap:26px;align-items:center;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .node{width:78px;height:78px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;background:#0e1a38;border:1px solid var(--line);position:relative}
+  .node.pe{border-color:var(--accent);box-shadow:0 0 24px #00bceb33}
+  .node small{position:absolute;bottom:-22px;left:0;right:0;text-align:center;color:var(--dim);font-weight:600;font-size:12px}
+  .link{width:52px;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;opacity:.7}
+  .foot{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;
+    padding:16px 28px;color:#6c7ba6;font-size:13px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink)}
+  .brand .b{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .progress{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .35s}
+  .hint{position:fixed;right:20px;bottom:56px;color:#546091;font-size:12px}
+  .big{font-size:30px;line-height:1.35}
+  .quote{font-size:26px;line-height:1.5;max-width:1000px}
+  .center{align-items:center;justify-content:center;text-align:center}
+  .center ul{display:inline-block;text-align:left}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:17px}
+  .kv .k{color:var(--dim)}
+  .ok{color:var(--green);font-weight:700}
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide center">
+    <div class="kicker">Cisco Crosswork Network Controller · TSDN</div>
+    <h1>AI-Driven Migration<br><span class="grad">MPLS → SRv6</span></h1>
+    <p class="lead">A conversational assistant that discovers your services, plans the change, executes it model-driven through Crosswork, and proves the result — end to end.</p>
+    <div style="margin-top:26px">
+      <span class="tag">Crosswork Workflow (CWM) MOP</span>
+      <span class="tag">IETF L3NM / L2NM</span>
+      <span class="tag">TSDN Custom-Templates</span>
+      <span class="tag">NSO</span>
+    </div>
+  </section>
+
+  <!-- 2 WHY -->
+  <section class="slide">
+    <div class="kicker">The opportunity</div>
+    <h2>Why move the VPN core to <span class="grad">SRv6</span>?</h2>
+    <div class="grid g3">
+      <div class="card"><h3>Radical simplification</h3><p>One IPv6 data plane. Remove LDP and MPLS label distribution entirely — fewer protocols, fewer failure modes.</p></div>
+      <div class="card"><h3>Native programmability</h3><p>End-to-end SRv6 SIDs (uDT4 / uDX2) enable TE, slicing and per-service steering without a separate label plane.</p></div>
+      <div class="card"><h3>Lower risk migration</h3><p>Dual-plane coexistence, per-service cutover, and automated verification — no “big bang”.</p></div>
+    </div>
+    <p class="lead" style="margin-top:26px">The hard part isn’t SRv6 — it’s doing the migration <b>safely, repeatably, and provably</b> across a live fabric.</p>
+  </section>
+
+  <!-- 3 THE IDEA -->
+  <section class="slide">
+    <div class="kicker">What we built</div>
+    <h2>A conversational migration assistant</h2>
+    <div class="flow">
+      <div class="step"><div class="n">01 · DISCOVER</div><div class="t">Find the services</div><div class="d">Queries CNC/NSO and identifies the L3VPN + L2VPN candidates automatically.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">02 · CLARIFY</div><div class="t">Ask only what it can’t infer</div><div class="d">RRv6 peer, SRv6 locator, Webex notifications.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">03 · EXECUTE</div><div class="t">Run the MOP</div><div class="d">Drives the Crosswork workflow phase-by-phase, streaming progress.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">04 · PROVE</div><div class="t">Report + verify</div><div class="d">Generates a migration report and on-box SRv6 verification.</div></div>
+    </div>
+    <p class="lead" style="margin-top:28px">The operator has a <b>conversation</b>, not a form — the automation does discovery, execution, and validation.</p>
+  </section>
+
+  <!-- 4 ARCHITECTURE -->
+  <section class="slide">
+    <div class="kicker">How it fits together</div>
+    <h2>Architecture</h2>
+    <div class="grid g2" style="align-items:stretch">
+      <div class="card">
+        <h3>Control &amp; automation</h3>
+        <ul style="margin-top:4px">
+          <li>SRv6 Assistant <small>— conversational UI over the portal API</small></li>
+          <li>Crosswork Workflow Manager <small>— SRv6 Migration MOP (phases 0→8)</small></li>
+          <li>Embedded NSO <small>— model-driven config via RESTCONF proxy</small></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Intent models &amp; guardrails</h3>
+        <ul style="margin-top:4px">
+          <li>IETF <b>L3NM</b> (<span class="mono">ietf-l3vpn-ntw</span>) &amp; <b>L2NM</b> (<span class="mono">ietf-l2vpn-ntw</span>)</li>
+          <li>TSDN <b>custom-templates</b> <small>— <span class="mono">ct-evpn-srv6</span>, <span class="mono">ct-srv6</span> for the last-mile enablers</small></li>
+          <li>Dry-run + per-phase verification gates</li>
+        </ul>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:24px">
+      <div class="step"><div class="t">Assistant</div><div class="d">discover · ask · start · report</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">CWM MOP</div><div class="d">orchestrates 9 phases</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">NSO + L3NM/L2NM</div><div class="d">renders SRv6 intent</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="t">XR / XE fabric</div><div class="d">SRv6 SIDs programmed</div></div>
+    </div>
+  </section>
+
+  <!-- 5 TOPOLOGY -->
+  <section class="slide">
+    <div class="kicker">The lab under test</div>
+    <h2>Services &amp; topology</h2>
+    <div class="topo">
+      <div class="node pe">N1<small>PE · vpn-101</small></div>
+      <div class="link"></div>
+      <div class="node">N5<small>P</small></div>
+      <div class="link"></div>
+      <div class="node pe">N2<small>PE · 101+129</small></div>
+      <div class="link"></div>
+      <div class="node">N6<small>P</small></div>
+      <div class="link"></div>
+      <div class="node pe">N4<small>PE · 101+129</small></div>
+    </div>
+    <div class="grid g2" style="margin-top:52px">
+      <div class="card"><h3>L3VPN · <span class="mono">vpn-101</span></h3><p>BGP VPNv4, PEs node-1 / node-2 / node-4. Migrated to SRv6 <b>uDT4 (End.DT4)</b> under locator MAIN.</p></div>
+      <div class="card"><h3>L2VPN · <span class="mono">vpn-129</span></h3><p>EVPN-VPWS, EVI 4129, node-2 ↔ node-4. Migrated to SRv6 <b>uDX2 (End.DX2)</b>, xconnect UP.</p></div>
+    </div>
+  </section>
+
+  <!-- 6 PHASES -->
+  <section class="slide">
+    <div class="kicker">The MOP</div>
+    <h2>Nine phases, fully orchestrated</h2>
+    <div class="grid g3">
+      <div class="card"><h3>0–1 · Prepare</h3><p>Baseline capture &amp; pre-checks — snapshot the working state.</p></div>
+      <div class="card"><h3>2 · SRv6 locators</h3><p>Provision locators (MAIN / TOP / BOTTOM / LATENCY).</p></div>
+      <div class="card"><h3>3 · IS-IS SRv6</h3><p>Enable SRv6 in the IGP, allocate uN / uA SIDs.</p></div>
+      <div class="card"><h3>4 · BGP RRv6</h3><p>Bring up IPv6 route-reflection to the RRv6 peer.</p></div>
+      <div class="card"><h3>5 · L3VPN → SRv6</h3><p>L3NM intent + per-VRF SRv6 locator (uDT4).</p></div>
+      <div class="card"><h3>5b · L2VPN → SRv6</h3><p>L2NM + <span class="mono">ct-evpn-srv6</span> enabler (uDX2).</p></div>
+      <div class="card"><h3>6–7 · Cutover</h3><p>Remove <span class="mono">mpls alloc</span> → SRv6 becomes best path.</p></div>
+      <div class="card"><h3>8 · Remove MPLS</h3><p>Delete LDP / MPLS — SRv6-only data plane.</p></div>
+      <div class="card"><h3>✓ · Verify</h3><p>Automated SRv6 assertions on every PE.</p></div>
+    </div>
+  </section>
+
+  <!-- 7 TECH WINS -->
+  <section class="slide">
+    <div class="kicker">Engineering that makes it real</div>
+    <h2>Model-driven, with the right last-mile guardrails</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Standards-based intent</h3>
+        <p>Services migrated through IETF <b>L3NM</b> and <b>L2NM</b> — vendor-neutral, auditable, idempotent. TSDN <b>custom-templates</b> fill the gaps the models don’t render (e.g. the global <span class="mono">evpn segment-routing srv6</span> enabler).</p>
+      </div>
+      <div class="card">
+        <h3>The finding that mattered</h3>
+        <p>On this platform, leaving <span class="mono">mpls alloc enable</span> in place <b>suppresses the SRv6-VPN SID</b> at the ingress PE — traffic stays on MPLS. The real cutover is <b>removing mpls-alloc</b>, after which CEF programs <span class="ok">SRv6 Headend</span>.</p>
+      </div>
+    </div>
+    <div style="margin-top:22px">
+      <span class="pill"><span class="dot"></span> Dual-plane coexistence</span>
+      <span class="pill"><span class="dot"></span> Per-service cutover</span>
+      <span class="pill"><span class="dot a"></span> Dry-run before commit</span>
+      <span class="pill"><span class="dot"></span> Webex approvals &amp; notifications</span>
+    </div>
+  </section>
+
+  <!-- 8 ASSISTANT UX -->
+  <section class="slide">
+    <div class="kicker">Live demo · part 1</div>
+    <h2>The conversation</h2>
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <div class="kv">
+          <div class="k">You</div><div>“Start SRv6 migration”</div>
+          <div class="k">Assistant</div><div>🔎 Discovers <span class="mono">vpn-101</span> + <span class="mono">vpn-129</span></div>
+          <div class="k">Assistant</div><div>Migrate both services?</div>
+          <div class="k">Assistant</div><div>What’s the RRv6 peer?</div>
+          <div class="k">Assistant</div><div>Which SRv6 locator?</div>
+          <div class="k">Assistant</div><div>Send Webex notifications?</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Then it runs</h3>
+        <ul style="margin-top:4px">
+          <li>▶️ / ✅ streamed <b>per phase</b> in the chat</li>
+          <li>Optional <b>Webex</b> progress + approval prompts</li>
+          <li>📄 <b>Migration report</b> at the end <small>— services, SIDs, phases, copy / download</small></li>
+        </ul>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:22px">Nothing is pre-filled — the assistant discovers the services and asks only for intent.</p>
+  </section>
+
+  <!-- 9 PROOF -->
+  <section class="slide center">
+    <div class="kicker">Live demo · part 2 — independent proof</div>
+    <h2>Verified on the box</h2>
+    <div class="grid g4" style="width:100%;margin-top:6px">
+      <div class="card center"><div class="metric g">12/12</div><p>SRv6 checks passed</p></div>
+      <div class="card center"><div class="metric c">2</div><p>services on SRv6<br><small>vpn-101 · vpn-129</small></p></div>
+      <div class="card center"><div class="metric c">0</div><p>LDP neighbors<br><small>MPLS removed</small></p></div>
+      <div class="card center"><div class="metric g">SRv6</div><p>Headend in CEF<br><small>on every PE</small></p></div>
+    </div>
+    <div style="margin-top:26px">
+      <span class="pill"><span class="dot"></span> uDT4 <span class="mono">fcbb:0:2:e004</span> · vpn-101</span>
+      <span class="pill"><span class="dot"></span> uDX2 <span class="mono">fcbb:0:2:e005</span> · 4129:1</span>
+      <span class="pill"><span class="dot"></span> xconnect vpn-129 UP</span>
+    </div>
+    <p class="lead" style="margin-top:22px"><span class="mono">python3 demo_verify.py</span> — one command, live from the fabric.</p>
+  </section>
+
+  <!-- 10 VALUE -->
+  <section class="slide">
+    <div class="kicker">Why it matters</div>
+    <h2>From weeks of runbooks to a <span class="grad">guided conversation</span></h2>
+    <div class="grid g3">
+      <div class="card"><h3>Faster</h3><p>Discovery, execution and verification are automated — the operator supplies intent, not CLI.</p></div>
+      <div class="card"><h3>Safer</h3><p>Dry-run, dual-plane, per-phase gates, and automated assertions catch problems before they spread.</p></div>
+      <div class="card"><h3>Repeatable</h3><p>Encoded as a Crosswork MOP with standards-based models — run it the same way on the next region.</p></div>
+    </div>
+    <p class="lead" style="margin-top:26px">Same pattern extends to slicing, multi-vendor, and future intent-based changes.</p>
+  </section>
+
+  <!-- 11 CLOSE -->
+  <section class="slide center">
+    <div class="kicker">Let’s watch it run</div>
+    <h1><span class="grad">Demo time</span></h1>
+    <p class="lead">1 · Conversational migration in the assistant &nbsp;→&nbsp; 2 · 📄 report &nbsp;→&nbsp; 3 · <span class="mono">demo_verify.py</span> proves it live.</p>
+    <div style="margin-top:24px">
+      <span class="tag">Crosswork Network Controller</span>
+      <span class="tag">SRv6</span>
+      <span class="tag">Model-driven</span>
+      <span class="tag">AI-assisted</span>
+    </div>
+  </section>
+
+</div>
+
+<div class="foot">
+  <div class="brand"><span class="b"></span> Cisco Crosswork · MPLS → SRv6</div>
+  <div><span id="cnt">1 / 11</span></div>
+</div>
+<div class="hint">← → or Space to navigate · F for fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('cnt').textContent=(i+1)+' / '+slides.length;
+    document.getElementById('prog').style.width=((i)/(slides.length-1)*100)+'%';
+  }
+  function next(){show(i+1)} function prev(){show(i-1)}
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();next();}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev();}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+    else if(e.key.toLowerCase()==='f'){
+      if(!document.fullscreenElement)document.documentElement.requestFullscreen(); else document.exitFullscreen();
+    }
+  });
+  document.addEventListener('click',e=>{ if(e.target.closest('a'))return; next(); });
+  show(0);
+</script>
+</body>
+</html>

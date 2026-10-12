@@ -1,0 +1,78 @@
+{
+  "name": "qos-migration-agent",
+  "full_name": "QoS Migration Agent",
+  "description": "Translate QoS configuration from ASR 900 (IOS-XE), NCS 540/55xx (IOS-XR) or ASR 9000 (IOS-XR) to Cisco 8000 IOS-XR using the config-translation skill, with per-section confidence and human-approved deployment-workflow generation.",
+  "image": "qos-migration-agent",
+  "version": "1.0.0",
+  "source": "Cisco CWAI",
+  "tags": [
+    "qos",
+    "migration",
+    "config-translation",
+    "cisco-8000",
+    "iosxr",
+    "qos-migration-agent"
+  ],
+  "allowed_roles": [
+    "admin",
+    "operator"
+  ],
+  "capabilities": [
+    "llm-proxy",
+    "mcp-tools"
+  ],
+  "metadata": {
+    "cpu_limit": "1000m",
+    "cpu_request": "500m",
+    "storage_size": "200Mi",
+    "max_runtimes": 1,
+    "memory_limit": "2Gi",
+    "memory_request": "1Gi",
+    "max_instances_in_runtime": 1,
+    "suggestion": "I want to run a QoS migration to Cisco 8000"
+  },
+  "settings": {
+    "temperature": 0.0,
+    "model": "cisco-gpt-5-nano",
+    "load_to_cnc": true,
+    "cnc_user": "admin",
+    "cnc_password": "",
+    "cnc_token": ""
+  },
+  "schemas": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "e.g. 'migrate node-16 QoS to Cisco 8000' or 'list QoS migration candidates'."
+        }
+      },
+      "required": ["prompt"],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "response": { "type": "string", "description": "Translated Cisco 8000 QoS + confidence report, or status." },
+        "status": { "type": "string" },
+        "device": { "type": "string" },
+        "workflow": { "type": "object", "description": "Generated deployment workflow (on approval)." }
+      },
+      "required": ["response"],
+      "additionalProperties": true
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string", "description": "Optional LLM model override." },
+        "temperature": { "type": "number", "description": "Sampling temperature (0.0-2.0)." },
+        "load_to_cnc": { "type": "boolean", "description": "Enable the load stage (load template->NSO, import workflow->CWM, NSO dry-run) on 172.20.163.49. OFF disables all writes; never commits device config." },
+        "cnc_user": { "type": "string", "description": "CNC username the agent uses to fetch a CAS token from 172.20.163.49 (default admin)." },
+        "cnc_password": { "type": "string", "description": "CNC password for cnc_user; the agent fetches its own CAS JWT. Leave blank to use cnc_token instead." },
+        "cnc_token": { "type": "string", "description": "Optional pre-minted CNC bearer token (fallback when cnc_password is blank)." }
+      },
+      "additionalProperties": false
+    }
+  }
+}

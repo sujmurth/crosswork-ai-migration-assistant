@@ -1,0 +1,65 @@
+{
+  "workflowId": "087805f9-f74f-4597-ad29-4fb63aa57741",
+  "createdAt": "2026-07-17T16:28:33.590606Z",
+  "updatedAt": "2026-07-24T21:14:03.427684Z",
+  "name": "validateChecks",
+  "version": "1.0",
+  "description": "Reusable pre/post-check engine. Input: { phaseLabel, checks:[{name,node,command,expect,phase,nedExec?}] }. Runs each check by invoking the runSingleCheck child workflow (foreach + subFlowRef), which executes the command via NSO live-status exec and computes a per-check PASS/FAIL verdict (device output matched against the 'expect' regex). Returns per-check results plus an overall 'allPass' verdict. The verdict must be computed inside runSingleCheck because a foreach action's results filter cannot see the iterationParam .check. nedExec defaults to tailf-ned-cisco-ios-xr-stats (use tailf-ned-cisco-ios-stats for IOS-XE / CPE nodes).",
+  "definition": {
+    "id": "validateChecks-1.0",
+    "name": "validateChecks",
+    "start": "iterateChecks",
+    "states": [
+      {
+        "mode": "sequential",
+        "name": "iterateChecks",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "runSingleCheck",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "transition": "summarize",
+        "iterationParam": "check",
+        "inputCollection": "${ .checks }",
+        "outputCollection": "${ .checkResults }"
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "summarize",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ { phase: (.phaseLabel // \"unnamed\"), results: .checkResults, failed: [ .checkResults[] | select(.verdict == \"FAIL\") ], passed: [ .checkResults[] | select(.verdict == \"PASS\") ], allPass: ( [ .checkResults[] | select(.verdict == \"FAIL\") ] | length == 0 ) } }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT10S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "description": "Reusable pre/post-check engine. Input: { phaseLabel, checks:[{name,node,command,expect,phase,nedExec?}] }. Runs each check by invoking the runSingleCheck child workflow (foreach + subFlowRef), which executes the command via NSO live-status exec and computes a per-check PASS/FAIL verdict (device output matched against the 'expect' regex). Returns per-check results plus an overall 'allPass' verdict. The verdict must be computed inside runSingleCheck because a foreach action's results filter cannot see the iterationParam .check. nedExec defaults to tailf-ned-cisco-ios-xr-stats (use tailf-ned-cisco-ios-stats for IOS-XE / CPE nodes).",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "validation",
+    "pre-check",
+    "post-check",
+    "SRv6-Migration"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "1e89ab7ec98b15531ff59a05ceee36aec701333b70e550b57ad34e696aef6475"
+}

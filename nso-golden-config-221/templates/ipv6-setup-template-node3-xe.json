@@ -1,0 +1,14 @@
+{
+  "name": "ipv6-setup-template-node3-xe",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\n{# Phase 1 (Enable IPv6) for node-3 -- IOS-XE 17.18 PE (single-topology ISIS). #}\n{# IPv6 ISIS is enabled per-interface via 'ipv6 router isis'; NO address-family #}\n{# submode is used for single-topology (avoids NED 'exit-address-family' which  #}\n{# IOS-XE 17.18 rejects). metric-style wide set at global router isis level.     #}\ninterface Loopback0\n ipv6 address 2010::3/128\n ipv6 router isis 1\n!\ninterface Loopback2\n ipv6 address 2011::3/128\n!\ninterface GigabitEthernet4\n ipv6 router isis 1\n!\ninterface GigabitEthernet7\n ipv6 router isis 1\n!\ninterface GigabitEthernet8\n ipv6 router isis 1\n!\ninterface GigabitEthernet9\n ipv6 router isis 1\n!\nrouter isis 1\n metric-style wide\n!\n"
+    }
+  ]
+}

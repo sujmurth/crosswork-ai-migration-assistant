@@ -1,0 +1,272 @@
+{
+  "workflowId": "5de97852-9cc9-44ca-b831-fce260f5bcfe",
+  "createdAt": "2026-02-18T01:36:29.566729Z",
+  "updatedAt": "2026-06-29T21:45:16.574962Z",
+  "name": "juniper-ping-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks the reachability to an ip address from device. The output should be a success if the packet-loss while pinging an ip from the machine is 0. Else the validation would send a failure response.",
+  "definition": {
+    "id": "juniper-ping-cwm-sol",
+    "name": "juniper-ping-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Ping check failed.",
+              "condition": ".\"ping-results\".\"probe-results-summary\".\"packet-loss\" == 0"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for ping check for Juniper devices"
+            }
+          ]
+        },
+        "transition": "ping-check"
+      },
+      {
+        "name": "ping-check",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-ping/ping\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"vendor\": \"Juniper Networks\", \"input\": {\"host\": .ping.address, \"count\": (if .ping.count != null then .ping.count else 1 end ), \"verbose\": ( if .ping.verbose != null then .ping.verbose else \"\" end)} })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if (.rakutilExecutorData.status==\"failed\" and .rakutilExecutorData.stash != null) then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Ping check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Ping check passed. Success rate is 100 percent.\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Ping check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else (\"Ping failed with \" + (.rakutilExecutorData.stash.output.\"ping-results\".\"probe-results-summary\".\"packet-loss\" | tostring) + \" percent failure rate.\") end), stash: .rakutilExecutorData.stash.output}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "ping check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks the reachability to an ip address from device. The output should be a success if the packet-loss while pinging an ip from the machine is 0. Else the validation would send a failure response.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "JuniperPingCheckSchema",
+        "required": [
+          "ping"
+        ],
+        "properties": {
+          "ping": {
+            "type": "object",
+            "title": "Ping Configuration",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "count": {
+                "type": "number",
+                "title": "Packet Count",
+                "default": 1,
+                "minimum": 1,
+                "description": "Number of ping packets to send"
+              },
+              "address": {
+                "type": "string",
+                "title": "Target Address",
+                "description": "The IP address or hostname to ping"
+              },
+              "verbose": {
+                "type": "string",
+                "title": "Verbose Mode",
+                "default": "",
+                "description": "Enable verbose output for ping command"
+              }
+            },
+            "description": "Configuration for ping test parameters"
+          }
+        }
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.juniper-ping-cwm-sol",
+  "path": "",
+  "hashSum": "be76c2d2bbca34af3916e42030b0b03ef97edcc889551c17b720e4de04ebfd37"
+}

@@ -1,0 +1,100 @@
+{
+  "workflowId": "783c1c81-d53c-44a2-b628-461322645be3",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-08T08:02:33.254525Z",
+  "name": "02.enableSRv6",
+  "version": "1.0",
+  "description": "Enumerate Network Infrastructure Devices and enable SRv6",
+  "definition": {
+    "id": "loopDevices-1.0",
+    "name": "02.enableSRv6",
+    "start": "getDevices",
+    "states": [
+      {
+        "name": "getDevices",
+        "type": "operation",
+        "actions": [
+          {
+            "version": "1.0",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "genericGetDevices"
+            }
+          }
+        ],
+        "transition": "iterateDevice"
+      },
+      {
+        "mode": "sequential",
+        "name": "iterateDevice",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "enableSRv6DeliverPayload",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "transition": "prepNode3",
+        "iterationParam": "node",
+        "inputCollection": "${ .devices | map(select(.name != \"node-3\")) }",
+        "stateDataFilter": {
+          "output": "${ . | del (.devices) }"
+        },
+        "outputCollection": "${ .payloadResult }"
+      },
+      {
+        "data": {
+          "node_id": "3",
+          "device_uuid": "c44f0cee-52a4-4b35-9942-9e2cb3c4f71b",
+          "template_name": "srv6-flexalgo-iosxe"
+        },
+        "name": "prepNode3",
+        "type": "inject",
+        "transition": "endOfWF"
+      },
+      {
+        "name": "deployNode3",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "deployConfigTemplate",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "transition": "endOfWF"
+      },
+      {
+        "end": true,
+        "name": "endOfWF",
+        "type": "operation"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "description": "Enumerate Network Infrastructure Devices and enable SRv6",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "step-6",
+    "SRv6"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "2cffdb4563cc2b3045a60ed38faf83fbfca071a15d25ed4c96f4d90e2b265b59"
+}

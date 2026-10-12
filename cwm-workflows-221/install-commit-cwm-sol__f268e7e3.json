@@ -1,0 +1,331 @@
+{
+  "workflowId": "f268e7e3-a9a7-44bd-80bf-237bd36b89f2",
+  "createdAt": "2026-02-18T01:36:29.167866Z",
+  "updatedAt": "2026-06-29T21:45:14.973588Z",
+  "name": "install-commit-cwm-sol",
+  "version": "2.1.0",
+  "description": "Commit operation after activate image to a device. The input and output has been updated to follow the input and output schema. The output schema is given in metadata. Failure: The EMS activity executor is called. If the EMS adapter returns failure status then the workflow would return failure.",
+  "definition": {
+    "id": "install-commit-cwm-sol",
+    "name": "install-commit-cwm-sol",
+    "start": "form-commit-action",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "form-commit-action",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "execute-commit",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"commit\" | .deviceIp=.\"app-data\".device.ip | .isISSUUpgrade=(if .commit.isISSUUpgrade == true then \"true\" else \"false\" end) | .emsResourceId=\"EMS\"}"
+        }
+      },
+      {
+        "name": "execute-commit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "execute-activate",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "emsactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .activityOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling emsactivityexecutor to do commit operation"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT90M"
+        },
+        "transition": "check-commit-status"
+      },
+      {
+        "name": "check-commit-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.activityOutput.jobDetails and (.activityOutput.jobDetails.jobResult | ascii_downcase == \"success\")}",
+            "transition": "commit-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "commit-failed-check-productSeries"
+        }
+      },
+      {
+        "name": "commit-failed-check-productSeries",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-lintd",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") }",
+            "transition": "form-lintd-log-command"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "form-exr-log-command"
+        }
+      },
+      {
+        "name": "form-lintd-log-command",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "command-executor-error-log",
+        "stateDataFilter": {
+          "output": "${ .errorCommand = \"show install log last 3\" }"
+        }
+      },
+      {
+        "name": "form-exr-log-command",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "command-executor-error-log",
+        "stateDataFilter": {
+          "output": "${ .errorCommand = \"show install log detail | utility tail count 50\" }"
+        }
+      },
+      {
+        "name": "command-executor-error-log",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": "${ .activity.execCommand = .errorCommand | .activity.resourceId = .\"app-data\".resource | .activity.device = .\"app-data\".device.name | .activity.method = \"execCli\" }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling nsoactivityexecutor to run the required command"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-cmd-output"
+      },
+      {
+        "name": "validate-cmd-output",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .activityOutput.status==\"success\" then true else false end}",
+            "transition": "commit-failed-get-device-error-log"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "commit-failed"
+        }
+      },
+      {
+        "end": true,
+        "name": "commit-failed-get-device-error-log",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Commit failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Commit failed\" end) end), \"stash\": [.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result]}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "commit-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Commit operation is successful"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Commit is successful.\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "commit-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Commit operation failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Commit failed\" end) end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Error while executing commit activity on resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Error while executing activity on resource.\" end) end)}}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT120M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Commit operation after activate image to a device. The input and output has been updated to follow the input and output schema. The output schema is given in metadata. Failure: The EMS activity executor is called. If the EMS adapter returns failure status then the workflow would return failure.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "Install Commit Configuration",
+        "properties": {
+          "commit": {
+            "type": "object",
+            "title": "Commit Configuration",
+            "properties": {
+              "isISSUUpgrade": {
+                "type": "boolean",
+                "title": "ISSU Upgrade Mode",
+                "default": false,
+                "description": "Indicates whether this is an In-Service Software Upgrade (ISSU) operation"
+              }
+            },
+            "description": "Configuration settings for the commit operation"
+          }
+        },
+        "failOnValidationErrors": true
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.install-commit-cwm-sol",
+  "path": "",
+  "hashSum": "dec767233cfea0dc70f4013de10649ea1fc00620aca1792cae8c857e16ada20f"
+}

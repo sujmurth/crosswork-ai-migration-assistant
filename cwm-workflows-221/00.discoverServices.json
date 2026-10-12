@@ -1,0 +1,99 @@
+{
+  "name": "00.discoverServices",
+  "version": "1.0",
+  "wfTags": ["srv6-migration", "discovery", "portable"],
+  "definition": {
+    "id": "00.discoverServices-1.0",
+    "name": "00.discoverServices",
+    "version": "1.0",
+    "specVersion": "0.8",
+    "description": "Discovery pre-stage: queries NSO L3NM/L2NM service models + device inventory and emits a `disco` object (L3VPN/L2VPN ids, PE nodes, SRv6 locator, address-family, devices). The SRv6-Migration-MOP references ${ .disco.* } instead of hard-coded node/vpn/locator values, making it CNC-portable.",
+    "start": "getL3VPN",
+    "functions": [
+      { "name": "NSO.RestconfGet", "operation": "cisco.nso.@latest.restconf.Get" }
+    ],
+    "states": [
+      {
+        "name": "getL3VPN",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "getL3nmServices",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfGet",
+              "arguments": {
+                "input": { "path": "restconf/data/ietf-l3vpn-ntw:l3vpn-ntw/vpn-services" },
+                "config": { "resourceId": "eNSO" }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then .data else {} end }",
+              "toStateData": "${ .l3raw }"
+            }
+          }
+        ],
+        "transition": "getL2VPN"
+      },
+      {
+        "name": "getL2VPN",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "getL2nmServices",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfGet",
+              "arguments": {
+                "input": { "path": "restconf/data/ietf-l2vpn-ntw:l2vpn-ntw/vpn-services" },
+                "config": { "resourceId": "eNSO" }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then .data else {} end }",
+              "toStateData": "${ .l2raw }"
+            }
+          }
+        ],
+        "transition": "getDevices"
+      },
+      {
+        "name": "getDevices",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "getDeviceNames",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfGet",
+              "arguments": {
+                "input": { "path": "restconf/data/tailf-ncs:devices/device?fields=name" },
+                "config": { "resourceId": "eNSO" }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then .data else {} end }",
+              "toStateData": "${ .devraw }"
+            }
+          }
+        ],
+        "transition": "buildDisco"
+      },
+      {
+        "name": "buildDisco",
+        "type": "operation",
+        "actions": [],
+        "end": true,
+        "metadata": {
+          "note": "Shapes the discovered NSO service data into .disco for the MOP to consume."
+        },
+        "stateDataFilter": {
+          "output": "${ . + { disco: { l3_services: [ (.l3raw.\"ietf-l3vpn-ntw:vpn-services\".\"vpn-service\" // []) | .[] | { vpn: .\"vpn-id\", pes: [ (.\"vpn-nodes\".\"vpn-node\" // []) | .[].\"vpn-node-id\" ], locator: (.\"vpn-instance-profiles\".\"vpn-instance-profile\"[0].\"cisco-l3vpn-ntw:srv6\".\"address-family\"[0].\"locator-name\"), af: (.\"vpn-instance-profiles\".\"vpn-instance-profile\"[0].\"cisco-l3vpn-ntw:srv6\".\"address-family\"[0].\"name\" | (if . then sub(\".*:\";\"\") else . end)) } ], l2_services: [ (.l2raw.\"ietf-l2vpn-ntw:vpn-services\".\"vpn-service\" // []) | .[] | { vpn: .\"vpn-id\", pes: (.modified.devices // [ (.\"vpn-nodes\".\"vpn-node\" // []) | .[].\"vpn-node-id\" ]), type: (.\"vpn-type\" | (if . then sub(\".*:\";\"\") else . end)) } ], devices: [ (.devraw.\"tailf-ncs:device\" // []) | .[].name ] } } }"
+        }
+      }
+    ],
+    "retries": [
+      { "name": "Default", "delay": "PT10S", "multiplier": 1.5, "maxAttempts": 2 }
+    ]
+  }
+}

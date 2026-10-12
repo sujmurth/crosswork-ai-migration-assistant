@@ -1,0 +1,428 @@
+{
+  "workflowId": "344c962e-3e3d-489c-afea-76698f94985b",
+  "createdAt": "2026-02-18T01:36:29.472388Z",
+  "updatedAt": "2026-06-29T21:45:16.296545Z",
+  "name": "juniper-arp-check-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks the status of the device (Juniper devices) to see if the Address Resolution Protocol (ARP) details for pre and post upgrade are same. If there are differences then \"warning\" is returned. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "juniper-arp-check-cwm-sol",
+    "name": "juniper-arp-check-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "ARP check is successful.",
+              "condition": "[.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")] | length > 0"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for ARP check"
+            }
+          ]
+        },
+        "transition": "execute-arp-check"
+      },
+      {
+        "name": "execute-arp-check",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-arp-table-information/get-arp-table-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for ARP check. ARP pre-upgrade check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"ARP pre-upgrade check is successful.\", stash: [.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")]}}"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in alarms",
+            "condition": "${ ([.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")]|sort) != (.stash|sort) }",
+            "transition": "arp-post-check-get-missing-hostnames"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "arp-post-check-passed"
+        }
+      },
+      {
+        "name": "arp-post-check-passed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for ARP check. ARP post check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"ARP post check is successful.\", stash: [.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")]}}"
+        }
+      },
+      {
+        "name": "arp-post-check-get-missing-hostnames",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "ARP check completed with warnings, getting missing hostnames"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "arp-post-check-get-added-hostnames"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += (if (([.stash[].hostname] - [(.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")).hostname]) | length > 0) then [\"Missing hostnames: \" + (([.stash[].hostname] - [(.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")).hostname]) | join(\", \"))] else [] end) }"
+        }
+      },
+      {
+        "name": "arp-post-check-get-added-hostnames",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "ARP check completed with warnings, getting added hostnames"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "set-warning-status"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += (if (([(.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")).hostname] - [.stash[].hostname]) | length > 0) then [\"Added hostnames: \" + (([(.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")).hostname] - [.stash[].hostname]) | join(\", \"))] else [] end) }"
+        }
+      },
+      {
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Interface check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"warning\", \"message\": (if .warnings then .warnings | join(\", \") else \"There are differences between pre and post upgrade data\" end), stash: [.rakutilExecutorData.stash.output.\"arp-table-information\".\"arp-table-entry\"[] | del(.\"arp-table-entry-flags\")]}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "ARP check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"ARP check failed.\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "ARP check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        {
+          "hostname": "172.20.160.1",
+          "ip-address": "172.20.160.1",
+          "mac-address": "00:00:0c:07:ac:0a",
+          "interface-name": "fxp0.0"
+        },
+        {
+          "hostname": "172.20.160.2",
+          "ip-address": "172.20.160.2",
+          "mac-address": "00:1b:0d:ef:79:40",
+          "interface-name": "fxp0.0"
+        },
+        {
+          "hostname": "172.20.160.3",
+          "ip-address": "172.20.160.3",
+          "mac-address": "00:1b:0d:ef:7f:00",
+          "interface-name": "fxp0.0"
+        }
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks the status of the device (Juniper devices) to see if the Address Resolution Protocol (ARP) details for pre and post upgrade are same. If there are differences then \"warning\" is returned. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "arpCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "496a651679a8a4904dfdb670cb2f047ed46975434ff21b5a2961744beb0b8572"
+}

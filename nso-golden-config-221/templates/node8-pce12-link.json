@@ -1,0 +1,14 @@
+{
+  "name": "node8-pce12-link",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "interface GigabitEthernet0/0/0/12\n description Connection to device pce-12 destination interface 8\n ipv4 address 10.8.12.8 255.255.255.0\n ipv6 address 2001::8:12:8/112\n ipv6 enable\n!\nrouter static\n address-family ipv4 unicast\n  198.19.1.12/32 10.8.12.12\n  198.19.2.12/32 10.8.12.12\n !\n address-family ipv6 unicast\n  2010::12/128 2001::8:12:12\n  2011::12/128 2001::8:12:12\n !\n!\n"
+    }
+  ]
+}

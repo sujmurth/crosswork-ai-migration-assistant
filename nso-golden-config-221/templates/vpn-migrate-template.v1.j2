@@ -1,0 +1,24 @@
+
+{# Phase 5 (deck step 7a/7c): PE BGP SRv6 session to RRv6 + per-VRF SRv6 locator MAIN #}
+router bgp {{ local_as }}
+  neighbor 2011::11
+  remote-as {{ remote_as }}
+  update-source {{ loopback }}
+  address-family vpnv4 unicast
+   encapsulation-type srv6
+   route-policy RRv6 out
+   exit
+  exit
+exit
+
+router bgp {{ local_as }}
+  vrf {{ vrf_name }}
+    address-family ipv4 unicast
+    mpls alloc enable
+    segment-routing srv6
+      locator MAIN
+      alloc mode per-vrf
+      exit
+    exit
+  exit
+exit

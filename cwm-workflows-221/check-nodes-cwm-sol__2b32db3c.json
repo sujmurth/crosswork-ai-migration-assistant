@@ -1,0 +1,376 @@
+{
+  "workflowId": "2b32db3c-8e48-48e9-a31c-108a424683fd",
+  "createdAt": "2026-02-18T01:36:29.041047Z",
+  "updatedAt": "2026-06-29T21:45:14.274778Z",
+  "name": "check-nodes-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks if all device nodes are operational. It is checked whether the nodes are active or operational and there are no offline nodes. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "check-nodes-cwm-sol",
+    "name": "check-nodes-cwm-sol",
+    "start": "check-device",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "inject-template-and-expressions-xr"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "check-productSeries-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "name": "check-productSeries-xe",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-asr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "inject-template-and-expressions-xe-asr-cat"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "inject-template-and-expressions-xe-cat"
+        }
+      },
+      {
+        "data": {
+          "template": "Value SLOT (..)\nValue TYPE (\\S+)\nValue STATE (\\S+\\s?\\S+)\nValue INSERT_TIME (\\S+)\n\nStart\n ^${SLOT}(\\s{8})+${TYPE}\\s+${STATE}\\s+${INSERT_TIME}* -> Record",
+          "expressions": [
+            {
+              "status": "success",
+              "message": "One or more node in OFFLINE state.",
+              "condition": "((. | length > 0) and ([.[] | select(.STATE == \"ok, active\")]|length > 0))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe-asr-cat",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for Nodes check for XE devices"
+            }
+          ]
+        },
+        "transition": "get-show-platform-command-result"
+      },
+      {
+        "data": {
+          "template": "Value SWITCH (..)\nValue ROLE (\\S+)\nValue PRIORITY (\\d+)\nValue STATE (\\S+)\n\nStart\n ^${SWITCH}\\s+${ROLE}\\s+${PRIORITY}\\s+${STATE}* -> Record",
+          "expressions": [
+            {
+              "status": "success",
+              "message": "One or more node in OFFLINE state.",
+              "condition": "((. | length > 0) and ([.[] | select(.STATE | ascii_downcase == \"ready\")]|length > 0))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe-cat",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for Nodes check for XE devices"
+            }
+          ]
+        },
+        "transition": "get-show-platform-command-result"
+      },
+      {
+        "data": {
+          "template": "Value NODE (\\S+)\nValue TYPE (\\S+)\nValue STATE ([\\w\\s]+)\nValue CONFIG_STATE (\\S+)\n\nStart\n  ^Node -> PLATFORMS\n\nPLATFORMS\n  ^${NODE}\\s+${TYPE}\\s+${STATE}\\s+${CONFIG_STATE}* -> Record",
+          "expressions": [
+            {
+              "status": "success",
+              "message": "One or more node in OFFLINE state.",
+              "condition": "((. | length > 0) and ([.[] | select(.NODE | test(\"/RP\")) | select(.STATE | test(\"OFFLINE\"))]|length == 0))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for Nodes check for XR devices"
+            }
+          ]
+        },
+        "transition": "get-show-platform-command-result"
+      },
+      {
+        "name": "get-show-platform-command-result",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": \"show platform\", \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if (.rakutilExecutorData.status==\"failed\" and .rakutilExecutorData.stash != null) then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Nodes check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Device nodes check passed.\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Nodes check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"One or more node in OFFLINE state\" end), stash: .rakutilExecutorData.nsoResponse}}"
+        }
+      },
+      {
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Nodes check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks if all device nodes are operational. It is checked whether the nodes are active or operational and there are no offline nodes. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "nodesCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "3a867dbf19e3e902416fba83e1334bcfb0de3b4e3e3f66dfd08ae06adbc46935"
+}

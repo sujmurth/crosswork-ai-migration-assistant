@@ -1,0 +1,592 @@
+{
+  "workflowId": "96ea53d5-dccb-48b6-aae4-798e685ed53f",
+  "createdAt": "2026-02-18T01:36:29.244235Z",
+  "updatedAt": "2026-06-29T21:45:15.378889Z",
+  "name": "interface-summary-cwm-sol",
+  "version": "2.1.0",
+  "description": "Check the interface state during Pre and Post upgrade phase. If stash is passed as part of the input then the execution data is matched with the stash. This is done during post upgrade check. The interface data is returned in stash during the pre upgrade check. \"Failure\" is returned if there is some execution error. \"Warning\" status is returned if the stash data does not match with the execution data, otherwise \"success\" is returned.",
+  "definition": {
+    "id": "interface-summary-cwm-sol",
+    "name": "interface-summary-cwm-sol",
+    "start": "check-device-family",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "inject-template-and-expressions-xr"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "inject-template-and-expressions-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "data": {
+          "command": "show interfaces summary",
+          "template": "Value InterfaceType (.*?)\nValue Total (\\d+)\nValue Up (\\d+)\nValue Down (\\d+)\nValue AdminDown (\\d+)\n\nStart\n  ^${InterfaceType}\\s+${Total}\\s+${Up}\\s+${Down}\\s+${AdminDown} -> Record",
+          "expressions": [
+            {
+              "status": "error",
+              "message": "Interface check failed.",
+              "condition": "[.[]] | length == 0"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for interface check"
+            }
+          ]
+        },
+        "transition": "execute-interface-check-command"
+      },
+      {
+        "data": {
+          "command": "show ip interface b",
+          "template": "Value INSTANCE (\\S+)\nValue STATUS (\\S+)\n\nStart\n ^${INSTANCE}(\\s+(\\S+))(\\s+(\\S+))(\\s+(\\S+))(\\s+(${STATUS}))(\\s+(\\S+))* -> Record",
+          "expressions": [
+            {
+              "status": "error",
+              "message": "Interface check failed.",
+              "condition": "[.[]] | length == 0"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for interface check"
+            }
+          ]
+        },
+        "transition": "execute-interface-check-command"
+      },
+      {
+        "name": "execute-interface-check-command",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": .command, \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\"})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is invalid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "handle-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in interface state",
+            "condition": "${ (.rakutilExecutorData.stash.output|sort) != (.stash|sort) }",
+            "transition": "check-device-family-interface-difference"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "interface-post-check-passed"
+        }
+      },
+      {
+        "name": "check-device-family-interface-difference",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "get-interface-differences-xr"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "get-interface-differences-xe"
+        }
+      },
+      {
+        "name": "get-interface-differences-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting differences in interface data between current execution and stash"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-missing-interface-types-xr",
+        "stateDataFilter": {
+          "output": "${ .warnings += [.stash as $f1 | .rakutilExecutorData.stash.output as $f2 | ($f1 - $f2).[] as $f3 | reduce $f3 as {$AdminDown,$Down,$InterfaceType,$Total,$Up} (null; ($f2.[] | select(.InterfaceType == $InterfaceType) | (\"For \"  + $InterfaceType + \" interface type, \" + (\"AdminDown\" + (if((.AdminDown|tonumber)>($AdminDown|tonumber)) then (\" increased from \" + $AdminDown + \" to \" + .AdminDown) else (if((.AdminDown|tonumber)==($AdminDown|tonumber)) then \" remained same\" else (\" decreased from \" + $AdminDown + \" to \" + .AdminDown)end) end)) + (\", Down\" + (if((.Down|tonumber)>($Down|tonumber)) then (\" increased from \" + $Down + \" to \" + .Down) else (if((.Down|tonumber)==($Down|tonumber)) then \" remained same\" else (\" decreased from \" + $Down + \" to \" + .Down)end) end)) + (\", Up\" + (if((.Up|tonumber)>($Up|tonumber)) then (\" increased from \" + $Up + \" to \" + .Up) else (if((.Up|tonumber)==($Up|tonumber)) then \" remained same\" else (\" decreased from \" + $Up + \" to \" + .Up)end) end)) + (\", Total\" + (if((.Total|tonumber)>($Total|tonumber)) then (\" increased from \" + $Total + \" to \" + .Total) else (if((.Total|tonumber)==($Total|tonumber)) then \" remained same\" else (\" decreased from \" + $Total + \" to \" + .Total)end) end)))))] }"
+        }
+      },
+      {
+        "name": "get-interface-differences-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting differences in interface data between current execution and stash"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-missing-interface-types-xe",
+        "stateDataFilter": {
+          "output": "${ .warnings += [.stash as $f1 | .rakutilExecutorData.stash.output as $f2 | ($f1 - $f2).[] as $f3 | reduce $f3 as {$INSTANCE,$STATUS} (null; ($f2.[] | select(.INSTANCE == $INSTANCE) | (\"For \"  + $INSTANCE + \", \" + (\"Status\" + (if(.STATUS!=$STATUS) then (\" changed from \" + $STATUS + \" to \" + .STATUS) else (\" remained same\") end) ))))] }"
+        }
+      },
+      {
+        "name": "get-missing-interface-types-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting missing interfaces between current execution and stash"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-extra-interface-types-xr",
+        "stateDataFilter": {
+          "output": "${ (([.stash[] | .InterfaceType]) - ([.rakutilExecutorData.stash.output[] | .InterfaceType])) as $f1 | .warnings += (if $f1|length != 0 then [ (\"Found missing interfaces - \" + ($f1 | join(\", \"))) ] else [] end) }"
+        }
+      },
+      {
+        "name": "get-missing-interface-types-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting missing interfaces between current execution and stash"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-extra-interface-types-xe",
+        "stateDataFilter": {
+          "output": "${ (([.stash[] | .INSTANCE]) - ([.rakutilExecutorData.stash.output[] | .INSTANCE])) as $f1 | .warnings += (if $f1|length != 0 then [ (\"Found missing interfaces - \" + ($f1 | join(\", \"))) ] else [] end) }"
+        }
+      },
+      {
+        "name": "get-extra-interface-types-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting extra interfaces in current execution"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-warning-status",
+        "stateDataFilter": {
+          "output": "${ (([.rakutilExecutorData.stash.output[] | .InterfaceType]) - ([.stash[] | .InterfaceType]) ) as $f1 | .warnings += (if $f1|length != 0 then [(\"Found extra interfaces - \" + ($f1 | join(\", \"))) ] else [] end) | .status=\"warning\" | .message=\"Differences are found in interface data in post-upgrade check.\" }"
+        }
+      },
+      {
+        "name": "get-extra-interface-types-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting extra interfaces in current execution"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-warning-status",
+        "stateDataFilter": {
+          "output": "${ (([.rakutilExecutorData.stash.output[] | .INSTANCE]) - ([.stash[] | .INSTANCE]) ) as $f1 | .warnings += (if $f1|length != 0 then [(\"Found extra interfaces - \" + ($f1 | join(\", \"))) ] else [] end) | .status=\"warning\" | .message=\"Differences are found in interface data in post-upgrade check.\" }"
+        }
+      },
+      {
+        "end": true,
+        "name": "handle-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Interface check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Error while executing interface check mop activity.\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Interface check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": .status, \"message\": (if .warnings then .warnings | join(\", \") else .message end), stash: .rakutilExecutorData.stash.output}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for interface check. Interface pre-upgrade check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Interface pre-upgrade check is successful.\", stash: .rakutilExecutorData.stash.output}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Interface check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "end": true,
+        "name": "interface-post-check-passed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Interface check passed. No differences found in interface data between stash and current execution."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"No differences found in interface data in post-upgrade check.\", \"stash\": .rakutilExecutorData.stash.output}}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        {
+          "Up": "1",
+          "Down": "0",
+          "Total": "1",
+          "AdminDown": "0",
+          "InterfaceType": "IFT_ETHERNET"
+        },
+        {
+          "Up": "1",
+          "Down": "0",
+          "Total": "1",
+          "AdminDown": "0",
+          "InterfaceType": "IFT_NULL"
+        }
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Check the interface state during Pre and Post upgrade phase. If stash is passed as part of the input then the execution data is matched with the stash. This is done during post upgrade check. The interface data is returned in stash during the pre upgrade check. \"Failure\" is returned if there is some execution error. \"Warning\" status is returned if the stash data does not match with the execution data, otherwise \"success\" is returned.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "interfaceSummaryCheckSchema",
+        "properties": {
+          "stash": {
+            "type": "array"
+          },
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "7aae4d3a67c7f2f90777c98dcb724d95ccbd425db02f478016617f73729b3b6b"
+}

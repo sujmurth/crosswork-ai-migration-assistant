@@ -1,0 +1,5 @@
+NAME                    OWNER  VERSION  TYPE
+CP Agent MCP Prototype  test   1.0      remote-mcp
+cisco_docs_rag          admin  1.0      remote-mcp
+
+Total: 2 resource(s)

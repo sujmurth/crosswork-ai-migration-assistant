@@ -1,0 +1,5 @@
+FROM srv6-migration-agent:1.0.0
+WORKDIR /app
+COPY main.py ./
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "main.py"]

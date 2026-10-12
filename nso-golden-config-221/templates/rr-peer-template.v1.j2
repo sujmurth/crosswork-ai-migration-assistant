@@ -1,0 +1,18 @@
+
+{# Phase 3 (deck step 7b): on RRv6, add vpnv4 SRv6 neighbors for the PE nodes #}
+router bgp {{ bgp_as }}
+address-family vpnv4 unicast
+exit
+
+{% if neighbors|length > 0 %}
+  {% for item in neighbors.split(',') %}
+    {% set device_id = item.lstrip('node-') %}
+    neighbor 2010::{{ device_id }}
+    remote-as {{ bgp_as }}
+    update-source {{ loopback }}
+    address-family vpnv4 unicast
+    route-reflector-client
+    exit
+    exit
+  {% endfor %}
+{% endif %}

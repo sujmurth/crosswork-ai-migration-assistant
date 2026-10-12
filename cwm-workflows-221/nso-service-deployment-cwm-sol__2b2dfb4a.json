@@ -1,0 +1,656 @@
+{
+  "workflowId": "2b2dfb4a-95e6-4af9-a7a3-d2ec3979c962",
+  "createdAt": "2026-02-18T01:37:33.24148Z",
+  "updatedAt": "2026-02-18T01:37:33.24148Z",
+  "name": "nso-service-deployment-cwm-sol",
+  "version": "2.1.0",
+  "description": "This workflow automates the deployment of Network Service Orchestrator (NSO) services with built-in safety mechanisms, dry-run capabilities, and intelligent error handling for both new service creation and existing service updates.",
+  "definition": {
+    "id": "nso-service-deployment-cwm-sol",
+    "name": "nso-service-deployment-cwm-sol",
+    "start": "check-execution-model",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Data",
+        "description": "PAYLOAD IS NOT CORRECT"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Forbidden",
+        "description": "UNAUTHORIZED REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_409",
+        "name": "Object_Exists",
+        "description": "OBJECT ALREADY EXISTS"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      }
+    ],
+    "events": [
+      {
+        "name": "cwm.forms.nso-dryrun-cwm-sol",
+        "type": "cwm.forms.nso-dryrun-cwm-sol",
+        "source": "system.internal.cwm"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-execution-model",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "sequential-execution",
+            "condition": "${ if (.\"app-data\".\"executionModel\" == 2 and .deviceSelection == null) then true else false end}",
+            "transition": {
+              "nextState": "no-device-selecton-error"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "process-jq-expressions"
+        }
+      },
+      {
+        "name": "process-jq-expressions",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "process-jq-expressions",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {data_source: ., expression_json: .} }",
+                  "path": "/v1/cwms-utils/process-jq-expressions"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .processedJQData }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "JQ expressions processed if they are present in the input data."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Data",
+            "transition": "execute-error-dry-run-update"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "check-expression-process-result"
+      },
+      {
+        "name": "check-expression-process-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-compare",
+            "condition": "${if .processedJQData.status == \"success\" then true else false end}",
+            "transition": "determine-device-selection"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "process-jq-expression-failure"
+        }
+      },
+      {
+        "name": "determine-device-selection",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "use-device-selection",
+            "condition": "${.deviceSelection.jsonPath != null}",
+            "transition": {
+              "nextState": "set-selected-device"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "execute-dry-run"
+        }
+      },
+      {
+        "name": "set-selected-device",
+        "type": "operation",
+        "actions": [],
+        "transition": "execute-dry-run",
+        "stateDataFilter": {
+          "output": "${.selectedDevice = ((.deviceSelection.jsonPath | gsub(\"\\\\[(?<i>[0-9]+)\\\\]\"; \".\\(.i)\") | split(\".\") | map(select(. != \"\")) | map(tonumber? // .)) as $path | getpath($path)) | .\"app-data\".device = .selectedDevice}"
+        }
+      },
+      {
+        "name": "execute-dry-run",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "show-dry-run",
+            "functionRef": {
+              "refName": "NSO.restconfPost",
+              "arguments": {
+                "input": {
+                  "data": "${.processedJQData.data.inputData | fromjson}",
+                  "path": "${.processedJQData.data.path}",
+                  "queries": {
+                    "additional": {
+                      "dry-run": "cli"
+                    }
+                  }
+                },
+                "config": {
+                  "resourceId": "${.\"app-data\".resource}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.dryRunResult}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "Object_Exists",
+            "transition": "form-dry-run-update-data-path"
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-result-dry-run"
+      },
+      {
+        "name": "check-result-dry-run",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-status",
+            "condition": "${ if .dryRunResult.status < 211 and .dryRunResult.status > 199 then true else false end }",
+            "transition": "create-dry-run-option"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-failure"
+        }
+      },
+      {
+        "name": "create-dry-run-option",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "use form",
+            "condition": "${ if .processedJQData.data.waitForDryRun == true then true else false end }",
+            "transition": "create-dry-run"
+          },
+          {
+            "name": "form not required",
+            "condition": "${ if .processedJQData.data.waitForDryRun == false then true else false end }",
+            "transition": "execute-commit"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "execute-commit"
+        }
+      },
+      {
+        "name": "create-dry-run",
+        "type": "callback",
+        "action": {
+          "name": "no operation",
+          "functionRef": {
+            "refName": "noop",
+            "arguments": {}
+          }
+        },
+        "eventRef": "cwm.forms.nso-dryrun-cwm-sol",
+        "metadata": {
+          "formData": "${ ({\"dryrunPre\":.\"dryRunResult\".data.\"dry-run-result\".cli.\"local-node\"}) }",
+          "taskName": "nso service with dry run"
+        },
+        "timeouts": {
+          "eventTimeout": "PT48H"
+        },
+        "transition": "evaluate-create-decision"
+      },
+      {
+        "name": "evaluate-create-decision",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "start-application",
+            "condition": "${ .approve == true }",
+            "transition": "execute-commit"
+          },
+          {
+            "name": "reject-application",
+            "condition": "${ .approve == false}",
+            "transition": "abandon-service"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abandon-service"
+        }
+      },
+      {
+        "end": true,
+        "name": "return-failure",
+        "type": "operation",
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"The execution failed\"}}"
+        }
+      },
+      {
+        "name": "form-dry-run-update-data-path",
+        "type": "operation",
+        "transition": "execute-dry-run-update",
+        "stateDataFilter": {
+          "output": "${{newPath: ((.path | split(\"/\"))[0:-1] | join(\"/\")), inputDataNew: {(.path | split(\"/\") | last): (.processedJQData.data.inputData | fromjson)}, \"app-data\": .\"app-data\", waitForDryRun: .waitForDryRun}}"
+        }
+      },
+      {
+        "name": "execute-dry-run-update",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "show-dry-run",
+            "functionRef": {
+              "refName": "NSO.restconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${.inputDataNew}",
+                  "path": "${.newPath}",
+                  "queries": {
+                    "additional": {
+                      "dry-run": "cli"
+                    }
+                  }
+                },
+                "config": {
+                  "resourceId": "${.\"app-data\".resource}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.dryRunUpdateResult}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "Bad_Data",
+            "transition": "execute-error-dry-run-update"
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-result-update-dry-run"
+      },
+      {
+        "name": "check-result-update-dry-run",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-status",
+            "condition": "${ if .dryRunUpdateResult.status < 211 and .dryRunUpdateResult.status > 199 then true else false end }",
+            "transition": "update-dry-run-option"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-failure"
+        }
+      },
+      {
+        "name": "update-dry-run-option",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "use form",
+            "condition": "${ if .waitForDryRun == true then true else false end }",
+            "transition": "update-dry-run"
+          },
+          {
+            "name": "form not required",
+            "condition": "${ if .waitForDryRun == false then true else false end }",
+            "transition": "execute-update-commit"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "execute-update-commit"
+        }
+      },
+      {
+        "name": "update-dry-run",
+        "type": "callback",
+        "action": {
+          "name": "no operation",
+          "functionRef": {
+            "refName": "noop",
+            "arguments": {}
+          }
+        },
+        "eventRef": "cwm.forms.nso-dryrun-cwm-sol",
+        "metadata": {
+          "formData": "${ ({\"dryrunPre\":.\"dryRunUpdateResult\".data.\"dry-run-result\".cli.\"local-node\"}) }",
+          "taskName": "nso service with dry run"
+        },
+        "timeouts": {
+          "eventTimeout": "PT48H"
+        },
+        "transition": "evaluate-update-decision"
+      },
+      {
+        "name": "evaluate-update-decision",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "start-application",
+            "condition": "${ .approve == true }",
+            "transition": "execute-update-commit"
+          },
+          {
+            "name": "reject-application",
+            "condition": "${ .approve == false}",
+            "transition": "abandon-service"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abandon-service"
+        }
+      },
+      {
+        "end": true,
+        "name": "execute-error-dry-run-update",
+        "type": "operation",
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"The update request failed\"}}"
+        }
+      },
+      {
+        "name": "execute-commit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "show-dry-run",
+            "functionRef": {
+              "refName": "NSO.restconfPost",
+              "arguments": {
+                "input": {
+                  "data": "${.processedJQData.data.inputData | fromjson}",
+                  "path": "${.processedJQData.data.path}"
+                },
+                "config": {
+                  "resourceId": "${.\"app-data\".resource}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.commitResult}"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-result-commit"
+      },
+      {
+        "name": "execute-update-commit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "show-dry-run",
+            "functionRef": {
+              "refName": "NSO.restconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${.inputDataNew}",
+                  "path": "${.newPath}"
+                },
+                "config": {
+                  "resourceId": "${.\"app-data\".resource}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.commitUpdateResult}"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-result-update-commit"
+      },
+      {
+        "name": "check-result-commit",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-status",
+            "condition": "${ if .commitResult.status < 211 and .commitResult.status > 199 then true else false end }",
+            "transition": "return-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-failure"
+        }
+      },
+      {
+        "name": "check-result-update-commit",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-status",
+            "condition": "${ if .commitUpdateResult.status < 211 and .commitUpdateResult.status > 199 then true else false end }",
+            "transition": "return-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-failure"
+        }
+      },
+      {
+        "end": true,
+        "name": "return-success",
+        "type": "operation",
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"The execution completed successfully\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), stash: (if (.dryRunResult != null) then (.dryRunResult.data.\"dry-run-result\".cli.\"local-node\") else (.dryRunUpdateResult.data.\"dry-run-result\".cli.\"local-node\") end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abandon-service",
+        "type": "operation",
+        "stateDataFilter": {
+          "output": "${{status:\"terminated\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"The execution has been terminated by the user\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "no-device-selecton-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Execution model is fleet-wide, but deviceSelection is not present.\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "process-jq-expression-failure",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"The JQ expression evaluation ended in failure.\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "server-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"Internal server error\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"Resource not found\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"Exited abnormally\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "rest-api-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"Automation API error\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "forbidden-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end), message: \"Unauthorized request error\" } }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "maxAttempts": 1
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT48H"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      },
+      {
+        "name": "CWMSUtils.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "NSO.restconfPost",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "NSO.restconfPatch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      }
+    ],
+    "description": "This workflow automates the deployment of Network Service Orchestrator (NSO) services with built-in safety mechanisms, dry-run capabilities, and intelligent error handling for both new service creation and existing service updates.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "required": [
+          "inputData",
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "NSO service path for deployment"
+          },
+          "inputData": {
+            "type": "string",
+            "title": "Input Data",
+            "description": "Service configuration data for NSO deployment"
+          },
+          "waitForDryRun": {
+            "type": "boolean",
+            "title": "Wait for Dry Run",
+            "default": true,
+            "description": "Whether to wait for user approval after dry run execution"
+          }
+        }
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.nso-service-deployment-cwm-sol",
+  "path": "",
+  "hashSum": "4b5a63a66789896ed8bf6d396229976a11918de98c35495bfe6896660e67337a"
+}

@@ -1,0 +1,954 @@
+{
+  "workflowId": "1d4a6e07-0bdb-437f-a283-05ea7be8c6a3",
+  "createdAt": "2026-06-29T21:45:17.026113Z",
+  "updatedAt": "2026-06-29T21:45:17.026113Z",
+  "name": "mop-3-pre-Default Juniper Upgrade",
+  "version": "2.1.0",
+  "description": "Mop wrapper workflow executes the mop activities of stage pre.",
+  "definition": {
+    "id": "mop-3-pre-Default Juniper Upgrade",
+    "name": "mop-3-pre-Default Juniper Upgrade",
+    "start": "check route engines-pre",
+    "events": [
+      {
+        "name": "cwm.sol.system.mopAction",
+        "type": "cwm.sol.system.mopAction",
+        "source": "actionStatusSource",
+        "correlation": [
+          {
+            "contextAttributeName": "jobId",
+            "contextAttributeValue": "${.jobId}"
+          },
+          {
+            "contextAttributeName": "runId",
+            "contextAttributeValue": "${.runId}"
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "name": "check route engines-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-route-engine-check-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check route engines",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check route engines-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check route engines-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check route engines-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check route engines-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check route engines-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check route engines-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check route engines-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "check alarms-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "check alarms-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-alarm-check-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check alarms",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check alarms-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check alarms-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check alarms-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check alarms-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check alarms-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check alarms-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check alarms-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "arp summary-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "arp summary-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-arp-check-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/arp summary",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-arp summary-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-arp summary-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-arp summary-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-arp summary-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-arp summary-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-arp summary-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-arp summary-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "check fpc status-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "check fpc status-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-fpc-check-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check fpc status",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check fpc status-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check fpc status-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check fpc status-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check fpc status-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check fpc status-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check fpc status-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check fpc status-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "check disk space-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "check disk space-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-disk-space-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check disk space",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check disk space-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check disk space-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check disk space-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check disk space-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check disk space-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check disk space-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check disk space-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "capture command output-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "capture command output-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "command-capture-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/capture command output",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-capture command output-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-capture command output-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-capture command output-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-capture command output-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-capture command output-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-capture command output-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-capture command output-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "check device memory-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "check device memory-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-memory-check-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check device memory",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check device memory-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check device memory-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check device memory-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check device memory-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check device memory-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check device memory-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check device memory-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "check interfaces-pre",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "check interfaces-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "juniper-interface-check-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "pre",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check interfaces",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check interfaces-pre",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check interfaces-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check interfaces-pre"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check interfaces-pre"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check interfaces-pre",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check interfaces-pre",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check interfaces-pre",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "successExecution",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "end": true,
+        "name": "successExecution",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"success\", \"message\": \"Workflow execution completed successfully.\", \"app-data\": .} }"
+        }
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "mop action has timed out."
+        },
+        "name": "eventTimeout",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "Workflow execution has been failed."
+        },
+        "name": "failedExecution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "terminated",
+          "message": "Workflow execution has been aborted by the user."
+        },
+        "name": "abortExecution",
+        "type": "inject"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT60S",
+        "maxAttempts": 4
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT1H30M"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Mop wrapper workflow executes the mop activities of stage pre.",
+    "specVersion": "0.9"
+  },
+  "wfTags": [
+    "system",
+    "mop:3",
+    "stage:pre"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "1d5c53383b5501341ef1aca9f9eae51fbcc24fc2fb6be75bb2c4cdb5d43e56e4"
+}

@@ -1,0 +1,16 @@
+
+router bgp {{ local_as }}
+  vrf {{ vrf_name }}
+    address-family {{ address_family }} unicast
+{% if mpls_alloc == "enable" %}
+      mpls alloc enable
+{% else %}
+      no mpls alloc enable
+{% endif %}
+    segment-routing srv6
+      locator {{ locator_name }}
+      alloc mode {{ alloc_mode }}
+      exit
+    exit
+  exit
+exit

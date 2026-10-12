@@ -1,0 +1,71 @@
+{
+  "workflowId": "35699af2-ae16-43ff-b789-18df86b3fbc5",
+  "createdAt": "2026-07-24T22:10:59.668627Z",
+  "updatedAt": "2026-07-24T22:10:59.668627Z",
+  "name": "zzV3",
+  "version": "1.0",
+  "description": "",
+  "definition": {
+    "id": "zzV3",
+    "name": "zzV3",
+    "start": "exec",
+    "states": [
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "exec",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "runCheck",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "input": {
+                      "args": "${ .check.command }"
+                    }
+                  },
+                  "path": "/restconf/operations/devices/device=${ .check.node }/live-status/${ .check.nedExec // \"tailf-ned-cisco-ios-xr-stats\" }:exec/any",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "${ \"nsoRest\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then ( .data | to_entries[0].value.result ) else \"\" end }",
+              "toStateData": "${ .rawOutput }"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ { name: .check.name, node: .check.node, command: .check.command, expect: .check.expect, phase: .check.phase, output: .rawOutput } | . + { verdict: ( .expect as $exp | if ( (.output // \"\") | test($exp) ) then \"PASS\" else \"FAIL\" end ) } | ( if .verdict == \"PASS\" then . else (\"ASSERT verdict=\" + (.verdict|tostring)) | error end ) }"
+        }
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "verify"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "c05c3f97272a1bc6544af3aa64c93231ef58c0d387a4f09b99318d3e52072bb8"
+}

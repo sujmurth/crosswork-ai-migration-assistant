@@ -1,0 +1,267 @@
+{
+  "workflowId": "21c6cd81-88e0-4724-8839-af503a7dc315",
+  "createdAt": "2026-02-18T01:36:29.278442Z",
+  "updatedAt": "2026-06-29T21:45:15.49764Z",
+  "name": "no-install-op-cwm-sol",
+  "version": "2.1.0",
+  "description": "Verifies if any installation processes are currently in progress. The string \"No install operation is in processes\" is searched when the command \"show install request\" is executed. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "no-install-op-cwm-sol",
+    "name": "no-install-op-cwm-sol",
+    "start": "inject-template-and-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "template": "Value ACTIVITY (No install operation in progress)\n\nStart\n  ^.*Current activity:[\\s]+${ACTIVITY}.*\n  ^${ACTIVITY} -> Record",
+          "expressions": [
+            {
+              "status": "success",
+              "message": "device is not ready for install request ",
+              "condition": "((. | length > 0) and (.[] | .ACTIVITY | contains(\"No install operation in progress\")))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for no install op check"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "checkInstallRequest"
+      },
+      {
+        "name": "checkInstallRequest",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": \"show install request\", \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\"})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormalExit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-rakutil-executor-check"
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "Success"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if (.rakutilExecutorData.status==\"failed\" and .rakutilExecutorData.stash != null) then true else false end}",
+            "transition": "Failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormalExit"
+        }
+      },
+      {
+        "name": "Success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "No install op check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", message: \"device is ready for install request \"} }"
+        }
+      },
+      {
+        "name": "Failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "No install op check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"device is not ready for install request \" end), stash: .rakutilExecutorData.nsoResponse }}"
+        }
+      },
+      {
+        "name": "abnormalExit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "No install op check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Abnormal exit\" end)} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT5S",
+        "multiplier": 1.1,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Verifies if any installation processes are currently in progress. The string \"No install operation is in processes\" is searched when the command \"show install request\" is executed. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "noInstallOpCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "b29c017e3c7e43aed91a1cf7d0413f4ed2fbf3a3624aba552037c714470e89c4"
+}

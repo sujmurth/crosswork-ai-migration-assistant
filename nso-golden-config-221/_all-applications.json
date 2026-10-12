@@ -1,0 +1,2241 @@
+{
+  "golden-config:application": [
+    {
+      "name": "cwm-gc-ct-srv6-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-25T14:13:46.801172+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-25T14:13:46.801172+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-25T14:13:46.801172+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-25T14:13:46.801172+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-25T14:13:46.801172+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-1"]
+      },
+      "directly-modified": {
+        "devices": ["node-1"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-ct-srv6-node-1']",
+      "created": "2026-08-25T14:13:46.801008+00:00",
+      "last-modified": "2026-08-26T18:10:36.711594+00:00",
+      "last-run": "2026-08-26T18:10:47.452987+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "ct-srv6",
+        "version": "1"
+      },
+      "variable": [
+        {
+          "name": "address_family",
+          "value": "ipv4"
+        },
+        {
+          "name": "alloc_mode",
+          "value": "per-vrf"
+        },
+        {
+          "name": "local_as",
+          "value": "65000"
+        },
+        {
+          "name": "locator_name",
+          "value": "MAIN"
+        },
+        {
+          "name": "mpls_alloc",
+          "value": "disable"
+        },
+        {
+          "name": "vrf_name",
+          "value": "vpn-101"
+        }
+      ]
+    },
+    {
+      "name": "cwm-gc-ct-srv6-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-25T12:47:12.623428+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-25T12:47:12.623428+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-25T12:47:12.623428+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-25T12:47:12.623428+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-25T12:47:12.623428+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-2"]
+      },
+      "directly-modified": {
+        "devices": ["node-2"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-ct-srv6-node-2']",
+      "created": "2026-08-25T12:47:12.623183+00:00",
+      "last-modified": "2026-08-26T18:07:55.023873+00:00",
+      "last-run": "2026-08-26T18:08:11.786943+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "ct-srv6",
+        "version": "1"
+      },
+      "variable": [
+        {
+          "name": "address_family",
+          "value": "ipv4"
+        },
+        {
+          "name": "alloc_mode",
+          "value": "per-vrf"
+        },
+        {
+          "name": "local_as",
+          "value": "65000"
+        },
+        {
+          "name": "locator_name",
+          "value": "MAIN"
+        },
+        {
+          "name": "mpls_alloc",
+          "value": "disable"
+        },
+        {
+          "name": "vrf_name",
+          "value": "vpn-101"
+        }
+      ]
+    },
+    {
+      "name": "cwm-gc-ct-srv6-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-25T14:13:52.332409+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-25T14:13:52.332409+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-25T14:13:52.332409+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-25T14:13:52.332409+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-25T14:13:52.332409+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-4"]
+      },
+      "directly-modified": {
+        "devices": ["node-4"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-ct-srv6-node-4']",
+      "created": "2026-08-25T14:13:52.332239+00:00",
+      "last-modified": "2026-08-26T18:08:12.841142+00:00",
+      "last-run": "2026-08-26T18:08:23.249696+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "ct-srv6",
+        "version": "1"
+      },
+      "variable": [
+        {
+          "name": "address_family",
+          "value": "ipv4"
+        },
+        {
+          "name": "alloc_mode",
+          "value": "per-vrf"
+        },
+        {
+          "name": "local_as",
+          "value": "65000"
+        },
+        {
+          "name": "locator_name",
+          "value": "MAIN"
+        },
+        {
+          "name": "mpls_alloc",
+          "value": "disable"
+        },
+        {
+          "name": "vrf_name",
+          "value": "vpn-101"
+        }
+      ]
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:43:42.761308+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:43:42.761308+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:43:42.761308+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:43:42.761308+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:43:42.761308+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-1"]
+      },
+      "directly-modified": {
+        "devices": ["node-1"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-1']",
+      "created": "2026-08-11T16:43:42.760964+00:00",
+      "last-modified": "2026-08-11T16:43:42.760964+00:00",
+      "last-run": "2026-08-11T16:43:42.761855+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:43:58.015906+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:43:58.015906+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:43:58.015906+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:43:58.015906+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:43:58.015906+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-2"]
+      },
+      "directly-modified": {
+        "devices": ["node-2"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-2']",
+      "created": "2026-08-11T16:43:58.015583+00:00",
+      "last-modified": "2026-08-11T16:43:58.015583+00:00",
+      "last-run": "2026-08-11T16:43:58.016523+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-3",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:03.521436+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:03.521436+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:03.521436+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:03.521436+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:03.521436+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-3"]
+      },
+      "directly-modified": {
+        "devices": ["node-3"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-3']",
+      "created": "2026-08-11T16:44:03.521294+00:00",
+      "last-modified": "2026-08-11T16:44:03.521294+00:00",
+      "last-run": "2026-08-11T16:44:03.522207+00:00",
+      "device": "node-3",
+      "jinja-template": {
+        "template": "ipv6-setup-template-node3-xe",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:08.036906+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:08.036906+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:08.036906+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:08.036906+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:08.036906+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-4"]
+      },
+      "directly-modified": {
+        "devices": ["node-4"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-4']",
+      "created": "2026-08-11T16:44:08.03671+00:00",
+      "last-modified": "2026-08-11T16:44:08.03671+00:00",
+      "last-run": "2026-08-11T16:44:08.037326+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-5",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:14.231524+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:14.231524+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:14.231524+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:14.231524+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:14.231524+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-5"]
+      },
+      "directly-modified": {
+        "devices": ["node-5"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-5']",
+      "created": "2026-08-11T16:44:14.231121+00:00",
+      "last-modified": "2026-08-11T16:44:14.231121+00:00",
+      "last-run": "2026-08-11T16:44:14.232381+00:00",
+      "device": "node-5",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-6",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:19.638224+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:19.638224+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:19.638224+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:19.638224+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:19.638224+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-6"]
+      },
+      "directly-modified": {
+        "devices": ["node-6"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-6']",
+      "created": "2026-08-11T16:44:19.638026+00:00",
+      "last-modified": "2026-08-11T16:44:19.638026+00:00",
+      "last-run": "2026-08-11T16:44:19.638673+00:00",
+      "device": "node-6",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-7",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:25.071702+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:25.071702+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:25.071702+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:25.071702+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:25.071702+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-7"]
+      },
+      "directly-modified": {
+        "devices": ["node-7"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-7']",
+      "created": "2026-08-11T16:44:25.071473+00:00",
+      "last-modified": "2026-08-11T16:44:25.071473+00:00",
+      "last-run": "2026-08-11T16:44:25.07212+00:00",
+      "device": "node-7",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-IPv6-node-8",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:30.577311+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:30.577311+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:30.577311+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:30.577311+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:30.577311+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-8"]
+      },
+      "directly-modified": {
+        "devices": ["node-8"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-IPv6-node-8']",
+      "created": "2026-08-11T16:44:30.577119+00:00",
+      "last-modified": "2026-08-11T16:44:30.577119+00:00",
+      "last-run": "2026-08-11T16:44:30.578025+00:00",
+      "device": "node-8",
+      "jinja-template": {
+        "template": "ipv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:38.814166+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:38.814166+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:44:38.814166+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:44:38.814166+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:44:38.814166+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-1"]
+      },
+      "directly-modified": {
+        "devices": ["node-1"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-1']",
+      "created": "2026-08-11T16:44:38.813876+00:00",
+      "last-modified": "2026-08-11T16:44:38.813876+00:00",
+      "last-run": "2026-08-11T16:44:38.814593+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:45:24.158747+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:45:24.158747+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:45:24.158747+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:45:24.158747+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:45:24.158747+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-2"]
+      },
+      "directly-modified": {
+        "devices": ["node-2"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-2']",
+      "created": "2026-08-11T16:45:24.15854+00:00",
+      "last-modified": "2026-08-11T16:45:24.15854+00:00",
+      "last-run": "2026-08-11T16:45:24.159136+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-3",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:11.402699+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:11.402699+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:11.402699+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:58:11.402699+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:11.402699+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-3"]
+      },
+      "directly-modified": {
+        "devices": ["node-3"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-3']",
+      "created": "2026-08-11T16:58:11.40245+00:00",
+      "last-modified": "2026-08-11T16:58:11.40245+00:00",
+      "last-run": "2026-08-11T16:58:11.403241+00:00",
+      "device": "node-3",
+      "jinja-template": {
+        "template": "srv6-setup-template-node3-xe",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:15.747084+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:15.747084+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:15.747084+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:58:15.747084+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:15.747084+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-4"]
+      },
+      "directly-modified": {
+        "devices": ["node-4"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-4']",
+      "created": "2026-08-11T16:58:15.746736+00:00",
+      "last-modified": "2026-08-11T16:58:15.746736+00:00",
+      "last-run": "2026-08-11T16:58:15.74761+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-5",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:22.300708+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:22.300708+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:22.300708+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:58:22.300708+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:22.300708+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-5"]
+      },
+      "directly-modified": {
+        "devices": ["node-5"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-5']",
+      "created": "2026-08-11T16:58:22.300538+00:00",
+      "last-modified": "2026-08-11T16:58:22.300538+00:00",
+      "last-run": "2026-08-11T16:58:22.301209+00:00",
+      "device": "node-5",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-6",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:27.587032+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:27.587032+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:27.587032+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:58:27.587032+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:27.587032+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-6"]
+      },
+      "directly-modified": {
+        "devices": ["node-6"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-6']",
+      "created": "2026-08-11T16:58:27.586693+00:00",
+      "last-modified": "2026-08-11T16:58:27.586693+00:00",
+      "last-run": "2026-08-11T16:58:27.587586+00:00",
+      "device": "node-6",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-7",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:33.066059+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:33.066059+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:33.066059+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:58:33.066059+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:33.066059+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-7"]
+      },
+      "directly-modified": {
+        "devices": ["node-7"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-7']",
+      "created": "2026-08-11T16:58:33.065856+00:00",
+      "last-modified": "2026-08-11T16:58:33.065856+00:00",
+      "last-run": "2026-08-11T16:58:33.066404+00:00",
+      "device": "node-7",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-enable-SRv6-node-8",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:38.366065+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:38.366065+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-08-11T16:58:38.366065+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-08-11T16:58:38.366065+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-08-11T16:58:38.366065+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-8"]
+      },
+      "directly-modified": {
+        "devices": ["node-8"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-enable-SRv6-node-8']",
+      "created": "2026-08-11T16:58:38.365851+00:00",
+      "last-modified": "2026-08-11T16:58:38.365851+00:00",
+      "last-run": "2026-08-11T16:58:38.366457+00:00",
+      "device": "node-8",
+      "jinja-template": {
+        "template": "srv6-setup-template",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-node8-pce12-link-node-8",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:08:47.519012+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:08:47.519012+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:08:47.519012+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T03:08:47.519012+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:08:47.519012+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-8"]
+      },
+      "directly-modified": {
+        "devices": ["node-8"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-node8-pce12-link-node-8']",
+      "created": "2026-10-06T03:08:47.518733+00:00",
+      "last-modified": "2026-10-06T03:08:47.518733+00:00",
+      "last-run": "2026-10-06T03:08:47.519464+00:00",
+      "device": "node-8",
+      "jinja-template": {
+        "template": "node8-pce12-link",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.214694+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.214694+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.214694+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.214694+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.214694+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-1']",
+      "created": "2026-10-07T12:41:28.214414+00:00",
+      "last-modified": "2026-10-07T12:41:28.214414+00:00",
+      "last-run": "2026-10-07T12:41:28.215457+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.572135+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.572135+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.572135+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.572135+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.572135+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-2']",
+      "created": "2026-10-07T12:41:28.5719+00:00",
+      "last-modified": "2026-10-07T12:41:28.5719+00:00",
+      "last-run": "2026-10-07T12:41:28.573063+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-3",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T13:00:06.107975+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T13:00:06.107975+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T13:00:06.107975+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T13:00:06.107975+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T13:00:06.107975+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-3"]
+      },
+      "directly-modified": {
+        "devices": ["node-3"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-3']",
+      "created": "2026-10-07T13:00:06.107693+00:00",
+      "last-modified": "2026-10-07T13:00:06.107693+00:00",
+      "last-run": "2026-10-07T13:00:06.108435+00:00",
+      "device": "node-3",
+      "jinja-template": {
+        "template": "remove-mpls-xe",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.937207+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.937207+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.937207+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.937207+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:28.937207+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-4']",
+      "created": "2026-10-07T12:41:28.936915+00:00",
+      "last-modified": "2026-10-07T12:41:28.936915+00:00",
+      "last-run": "2026-10-07T12:41:28.937719+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-5",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.295651+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.295651+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.295651+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.295651+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.295651+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-5']",
+      "created": "2026-10-07T12:41:29.295437+00:00",
+      "last-modified": "2026-10-07T12:41:29.295437+00:00",
+      "last-run": "2026-10-07T12:41:29.296062+00:00",
+      "device": "node-5",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-6",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.643131+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.643131+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.643131+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.643131+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.643131+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-6']",
+      "created": "2026-10-07T12:41:29.642974+00:00",
+      "last-modified": "2026-10-07T12:41:29.642974+00:00",
+      "last-run": "2026-10-07T12:41:29.64369+00:00",
+      "device": "node-6",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-7",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.949668+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.949668+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.949668+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.949668+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:29.949668+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-7']",
+      "created": "2026-10-07T12:41:29.949312+00:00",
+      "last-modified": "2026-10-07T12:41:29.949312+00:00",
+      "last-run": "2026-10-07T12:41:29.950228+00:00",
+      "device": "node-7",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-remove-MPLS-node-8",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:30.274391+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:30.274391+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T12:41:30.274391+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T12:41:30.274391+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T12:41:30.274391+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-remove-MPLS-node-8']",
+      "created": "2026-10-07T12:41:30.274148+00:00",
+      "last-modified": "2026-10-07T12:41:30.274148+00:00",
+      "last-run": "2026-10-07T12:41:30.274894+00:00",
+      "device": "node-8",
+      "jinja-template": {
+        "template": "remove-mpls",
+        "version": "1.0"
+      }
+    },
+    {
+      "name": "cwm-gc-route-policy-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T05:01:45.856472+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T05:01:45.856472+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T05:01:45.856472+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T05:01:45.856472+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T05:01:45.856472+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-1"]
+      },
+      "directly-modified": {
+        "devices": ["node-1"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-route-policy-node-1']",
+      "created": "2026-10-07T05:01:45.856206+00:00",
+      "last-modified": "2026-10-07T05:01:45.856206+00:00",
+      "last-run": "2026-10-07T05:01:45.856932+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "route-policy-template",
+        "version": "1"
+      },
+      "variable": [
+        {
+          "name": "local_preference",
+          "value": "150"
+        }
+      ]
+    },
+    {
+      "name": "cwm-gc-route-policy-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.257928+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.257928+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.257928+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.257928+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.257928+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-2"]
+      },
+      "directly-modified": {
+        "devices": ["node-2"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-route-policy-node-2']",
+      "created": "2026-10-07T05:01:46.257786+00:00",
+      "last-modified": "2026-10-07T05:01:46.257786+00:00",
+      "last-run": "2026-10-07T05:01:46.258455+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "route-policy-template",
+        "version": "1"
+      },
+      "variable": [
+        {
+          "name": "local_preference",
+          "value": "150"
+        }
+      ]
+    },
+    {
+      "name": "cwm-gc-route-policy-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.66616+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.66616+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.66616+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.66616+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-07T05:01:46.66616+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-4"]
+      },
+      "directly-modified": {
+        "devices": ["node-4"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-route-policy-node-4']",
+      "created": "2026-10-07T05:01:46.66598+00:00",
+      "last-modified": "2026-10-07T05:01:46.66598+00:00",
+      "last-run": "2026-10-07T05:01:46.666535+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "route-policy-template",
+        "version": "1"
+      },
+      "variable": [
+        {
+          "name": "local_preference",
+          "value": "150"
+        }
+      ]
+    },
+    {
+      "name": "cwm-gc-rrv6-pol-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T01:00:07.494402+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T01:00:07.494402+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T01:00:07.494402+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T01:00:07.494402+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T01:00:07.494402+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-1"]
+      },
+      "directly-modified": {
+        "devices": ["node-1"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-rrv6-pol-node-1']",
+      "created": "2026-10-06T01:00:07.494092+00:00",
+      "last-modified": "2026-10-06T01:00:07.494092+00:00",
+      "last-run": "2026-10-07T04:25:33.719109+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "rrv6-policy",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-rrv6-pol-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T01:00:01.215392+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T01:00:01.215392+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T01:00:01.215392+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T01:00:01.215392+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T01:00:01.215392+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-2"]
+      },
+      "directly-modified": {
+        "devices": ["node-2"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-rrv6-pol-node-2']",
+      "created": "2026-10-06T01:00:01.215209+00:00",
+      "last-modified": "2026-10-06T01:00:01.215209+00:00",
+      "last-run": "2026-10-07T04:25:44.087426+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "rrv6-policy",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-rrv6-pol-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T01:00:18.383858+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T01:00:18.383858+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T01:00:18.383858+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T01:00:18.383858+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T01:00:18.383858+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-4"]
+      },
+      "directly-modified": {
+        "devices": ["node-4"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-rrv6-pol-node-4']",
+      "created": "2026-10-06T01:00:18.383697+00:00",
+      "last-modified": "2026-10-06T01:00:18.383697+00:00",
+      "last-run": "2026-10-07T04:25:50.470243+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "rrv6-policy",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-rrv6-sess12-node-1",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:43:40.352143+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:43:40.352143+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:43:40.352143+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T03:43:40.352143+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:43:40.352143+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-1"]
+      },
+      "directly-modified": {
+        "devices": ["node-1"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-rrv6-sess12-node-1']",
+      "created": "2026-10-06T03:43:40.351966+00:00",
+      "last-modified": "2026-10-06T03:43:40.351966+00:00",
+      "last-run": "2026-10-06T03:43:40.352545+00:00",
+      "device": "node-1",
+      "jinja-template": {
+        "template": "rrv6-session-12",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-rrv6-sess12-node-2",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:43:33.966711+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:43:33.966711+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:43:33.966711+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T03:43:33.966711+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:43:33.966711+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-2"]
+      },
+      "directly-modified": {
+        "devices": ["node-2"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-rrv6-sess12-node-2']",
+      "created": "2026-10-06T03:43:33.966499+00:00",
+      "last-modified": "2026-10-06T03:43:33.966499+00:00",
+      "last-run": "2026-10-06T03:43:33.967099+00:00",
+      "device": "node-2",
+      "jinja-template": {
+        "template": "rrv6-session-12",
+        "version": "1"
+      }
+    },
+    {
+      "name": "cwm-gc-rrv6-sess12-node-4",
+      "plan": {
+        "component": [
+          {
+            "name": "self",
+            "type": "tailf-ncs:self",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:43:50.836927+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:43:50.836927+00:00"
+              }
+            ]
+          },
+          {
+            "name": "config",
+            "type": "golden-config:device-config",
+            "state": [
+              {
+                "name": "tailf-ncs:init",
+                "status": "reached",
+                "when": "2026-10-06T03:43:50.836927+00:00"
+              },
+              {
+                "name": "golden-config:apply-template",
+                "status": "reached",
+                "when": "2026-10-06T03:43:50.836927+00:00"
+              },
+              {
+                "name": "tailf-ncs:ready",
+                "status": "reached",
+                "when": "2026-10-06T03:43:50.836927+00:00"
+              }
+            ]
+          }
+        ]
+      },
+      "modified": {
+        "devices": ["node-4"]
+      },
+      "directly-modified": {
+        "devices": ["node-4"]
+      },
+      "plan-location": "/golden-config:golden-config/application[name='cwm-gc-rrv6-sess12-node-4']",
+      "created": "2026-10-06T03:43:50.836677+00:00",
+      "last-modified": "2026-10-06T03:43:50.836677+00:00",
+      "last-run": "2026-10-06T03:43:50.837523+00:00",
+      "device": "node-4",
+      "jinja-template": {
+        "template": "rrv6-session-12",
+        "version": "1"
+      }
+    }
+  ]
+}

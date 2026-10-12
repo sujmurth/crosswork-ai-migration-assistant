@@ -1,0 +1,40 @@
+{
+  "name": "l2vpn-migrate-template",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\nl2vpn\n xconnect group {{ xconnect_group }}\n  p2p {{ xconnect_group }}\n   interface {{ attachment_circuit }}\n   neighbor evpn evi {{ evi }} target {{ target }} source {{ source }}\n   exit\n  exit\n exit\nexit\n",
+      "variable": [
+        {
+          "name": "attachment_circuit",
+          "value": "GigabitEthernet0/0/0/11.2129"
+        },
+        {
+          "name": "evi",
+          "value": "4129"
+        },
+        {
+          "name": "locator",
+          "value": "MAIN"
+        },
+        {
+          "name": "source",
+          "value": "1"
+        },
+        {
+          "name": "target",
+          "value": "2"
+        },
+        {
+          "name": "xconnect_group",
+          "value": "vpn-129"
+        }
+      ]
+    }
+  ]
+}

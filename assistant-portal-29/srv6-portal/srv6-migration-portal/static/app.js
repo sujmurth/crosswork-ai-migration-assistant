@@ -1,0 +1,433 @@
+"use strict";
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const r = await fetch(path, body ? {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  } : {});
+  return r.json();
+};
+
+let currentCheck = null;
+let SID = null;
+let MIG_ACTIVE = false;
+
+// ---- boot: load config ----
+(async () => {
+  try {
+    const c = await api("/api/config");
+    $("envbadge").textContent = `CNC ${c.cncHost} · ${c.workflowName}`;
+    $("envbadge").classList.add("ok");
+    if (!$("cncHost").value) $("cncHost").value = c.cncHost || "";
+    if (!$("cncPort").value) $("cncPort").value = c.cncPort || "";
+    if (!$("cncUser").value) $("cncUser").value = "admin";
+    if (!$("l3vpn").value) $("l3vpn").value = c.l3vpnName || "";
+    if (!$("l2vpn").value) $("l2vpn").value = c.l2vpnName || "";
+    if (!$("srv6loc").value) $("srv6loc").value = c.locator || "MAIN";
+    if (!$("rrv6ip").value) $("rrv6ip").value = c.rrv6Ip || "2011::12";
+  } catch { $("envbadge").textContent = "backend offline"; }
+  loadRegistry();
+})();
+
+// ---- L3VPN / L2VPN migration status ----
+function statusBadge(s) {
+  if (s === "migrated") return '<span class="badge ok">SRv6 migrated</span>';
+  if (s === "baseline") return '<span class="badge warn">MPLS baseline</span>';
+  if (s === "attention") return '<span class="badge bad">needs attention</span>';
+  return '<span class="badge">pending</span>';
+}
+function renderVpn(map, live) {
+  const el = $("vpnStatus");
+  const keys = Object.keys(map).filter(k => !k.startsWith("_") && map[k] &&
+    typeof map[k] === "object" && (map[k].checks || map[k].results));
+  const html = keys.map(k => {
+    const v = map[k];
+    const checks = live ? v.results : (v.checks || []).map(c => ({ ...c, matched: null }));
+    const badge = live ? statusBadge(v.status) : statusBadge(null);
+    const rows = checks.map(c => {
+      const verdict = c.matched === true ? '<span class="pass">PASS ✔</span>'
+        : c.matched === false ? '<span class="pend">PENDING</span>'
+        : c.error ? '<span class="pend">PENDING</span>' : '<span style="color:#9aa4ad">—</span>';
+      return `<div class="chk"><span class="pill ${c.stage}">${c.stage}</span>` +
+        `<b>${escapeHtml(c.name || "")}</b>` +
+        `<span class="mono">${escapeHtml(c.command || "")}</span>` +
+        `<span style="margin-left:auto">${verdict}</span></div>`;
+    }).join("");
+    return `<div class="vpnrow"><div class="vpnhead"><b>${escapeHtml(v.type || "")}</b> ` +
+      `<span class="mono">${escapeHtml(v.service || "")}</span> ${badge}</div>${rows}</div>`;
+  }).join("");
+  el.innerHTML = html || "no services configured";
+}
+// tie the grey phase bar to the derived migration state
+function updatePhases(vpns) {
+  const keys = Object.keys(vpns).filter(k => !k.startsWith("_") && vpns[k] && vpns[k].status);
+  if (!keys.length) return;
+  const st = keys.map(k => vpns[k].status);
+  let done;
+  if (st.every(s => s === "migrated")) done = 8;        // through Cutover, Remove MPLS next
+  else if (st.some(s => s === "migrated")) done = 7;    // partial: cutover in progress
+  else if (st.every(s => s === "baseline")) done = 1;   // Baseline validated
+  else done = 0;                                        // attention / not ready
+  document.querySelectorAll(".phase").forEach(e => {
+    const p = parseInt(e.dataset.p, 10);
+    e.classList.toggle("done", p < done);
+    e.classList.toggle("active", p === done);
+  });
+}
+async function loadVpnChecks() {
+  try { renderVpn(await api("/api/vpn-checks"), false); }
+  catch { $("vpnStatus").textContent = "backend offline"; }
+}
+async function runVpnStatus(silent) {
+  if (!SID) { if (!silent) $("vpnStatus").innerHTML = '<span style="color:#9aa4ad">connect to CNC first (top of the page) — status runs via CNC\u2019s NSO API</span>'; return; }
+  if (!silent) { $("statusOut").textContent = ""; $("vpnStatus").innerHTML = '<span style="color:#9aa4ad">running read-only checks via CNC \u2192 NSO live-status\u2026</span>'; }
+  const res = await api("/api/vpn-status", { sid: SID });
+  if (!res.ok) { if (!silent) $("vpnStatus").textContent = "status run failed: " + (res.error || ""); return; }
+  renderVpn(res.vpns, true);
+  if (!MIG_ACTIVE) updatePhases(res.vpns);   // let the live job drive the strip while a run is active
+}
+$("btnStatus").onclick = () => runVpnStatus(false);
+$("btnSeed").onclick = async () => {
+  const res = await api("/api/vpn-seed", {});
+  $("statusOut").textContent = res.ok
+    ? "✔ added " + res.added + " pre/post checks to the workflow registry (see Saved Checks)"
+    : "✖ failed to seed checks";
+  if (res.checks) renderRegistry(res.checks);
+};
+loadVpnChecks();
+
+// ---- left nav rail: scroll to section + active state ----
+document.querySelectorAll(".nav-item").forEach(el => {
+  el.addEventListener("click", () => {
+    const id = el.dataset.scroll;
+    if (id) { const t = document.getElementById(id); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+    el.classList.add("active");
+  });
+});
+
+// ---- collect check from the editable form ----
+function formToCheck() {
+  return {
+    name: $("c_name").value, phase: $("c_phase").value, type: $("c_type").value,
+    node: $("c_node").value, command: $("c_cmd").value, expect: $("c_expect").value,
+    match: $("c_match").value, nedExec: $("c_ned").value, onFail: $("c_onfail").value,
+    createdVia: "nl-authoring",
+  };
+}
+function checkToForm(c) {
+  $("c_name").value = c.name || ""; $("c_phase").value = c.phase || "";
+  $("c_type").value = c.type || "pre"; $("c_node").value = c.node || "";
+  $("c_cmd").value = c.command || ""; $("c_expect").value = c.expect || "";
+  $("c_match").value = c.match || "contains"; $("c_ned").value = c.nedExec || "";
+  $("c_onfail").value = c.onFail || "halt";
+}
+
+// ---- parse NL ----
+$("btnParse").onclick = async () => {
+  const sentence = $("nl").value.trim();
+  if (!sentence) return;
+  $("dryOut").textContent = "";
+  const res = await api("/api/nl-parse", { sentence });
+  currentCheck = res.check;
+  checkToForm(res.check);
+  $("checkCard").classList.remove("hidden");
+  $("btnDry").disabled = false; $("btnSave").disabled = false; $("btnToWf").disabled = false;
+  $("warns").textContent = (res.warnings && res.warnings.length)
+    ? "⚠ " + res.warnings.join(" · ") : "";
+  highlightPhase(res.check.phase);
+};
+
+// ---- dry-run on device ----
+$("btnDry").onclick = async () => {
+  const check = formToCheck();
+  if (!SID) { $("dryOut").textContent = "connect to CNC first — checks run via CNC\u2019s NSO API"; return; }
+  $("dryOut").textContent = "running via CNC \u2192 NSO live-status\u2026";
+  const res = await api("/api/dry-run", { check, sid: SID });
+  if (!res.ok) { $("dryOut").textContent = "ERROR: " + (res.error || "failed"); return; }
+  const verdict = res.matched === true ? '<span class="pass">PASS ✔</span>'
+    : res.matched === false ? '<span class="fail">FAIL ✖ (expect not found)</span>'
+    : "(no expect set)";
+  $("dryOut").innerHTML =
+    `$ ${check.node}: ${check.command}\nmatch(${check.match} "${check.expect}"): ${verdict}\n\n` +
+    escapeHtml(res.output || "");
+};
+
+// ---- save to registry ----
+$("btnSave").onclick = async () => {
+  const check = formToCheck();
+  const res = await api("/api/checks", { check });
+  renderRegistry(res.checks || []);
+  $("dryOut").textContent = "✔ saved '" + check.name + "' as " + check.type + "-check for phase " + check.phase;
+};
+// ---- convert the check into a CWM workflow step (preview, or apply when logged in) ----
+$("btnToWf").onclick = async () => {
+  const check = formToCheck();
+  const workflow = $("wfName").value.trim() || "SRv6-Migration-MOP";
+  const apply = !!SID;   // implicit: apply to the live workflow when connected, else preview
+  $("wfOut").textContent = apply ? "adding to " + workflow + "\u2026" : "generating workflow step (connect to CNC to add it live)\u2026";
+  const res = await api("/api/to-workflow", { check, workflow, apply, sid: SID });
+  if (!res.ok) { $("wfOut").textContent = "ERROR: " + (res.error || "failed"); return; }
+  let m = "// " + res.stepCount + " step(s) for workflow '" + res.workflow + "'\n" +
+    JSON.stringify(res.steps, null, 2);
+  if (apply) {
+    m += "\n\n" + (res.applied
+      ? "\u2714 appended to live workflow (HTTP " + res.applyStatus + "): " + (res.added || []).join(", ")
+      : "\u2716 not applied: " + (res.applyError || ("HTTP " + res.applyStatus)) +
+        (res.workflowKeys ? "\nworkflow keys: " + res.workflowKeys.join(", ") : ""));
+  }
+  $("wfOut").textContent = m;
+};
+
+// ---- config action -> golden template authoring ----
+let currentAction = null;
+function actionFormToAction() {
+  return {
+    name: $("a_name").value, phase: $("a_phase").value, mode: $("a_mode").value,
+    resourceId: $("a_resource").value.trim() || "nso-dCloud",
+    nodes: $("a_nodes").value.split(",").map(s => s.trim()).filter(Boolean),
+    config: $("a_config").value, tag: "SRv6-Migration", createdVia: "nl-authoring",
+  };
+}
+function actionToForm(a) {
+  $("a_name").value = a.name || ""; $("a_phase").value = a.phase || "";
+  $("a_mode").value = a.mode || "merge"; $("a_resource").value = a.resourceId || "nso-dCloud";
+  $("a_nodes").value = (a.nodes || []).join(", "); $("a_config").value = a.config || "";
+}
+$("btnAParse").onclick = async () => {
+  const sentence = $("na").value.trim();
+  if (!sentence) return;
+  $("aOut").textContent = "";
+  const res = await api("/api/nl-action", { sentence });
+  currentAction = res.action;
+  actionToForm(res.action);
+  $("actionCard").classList.remove("hidden");
+  $("btnAGen").disabled = false; $("btnACreate").disabled = false; $("btnAToWf").disabled = false;
+  $("aWarns").textContent = (res.warnings && res.warnings.length)
+    ? "\u26a0 " + res.warnings.join(" \u00b7 ") : "";
+  highlightPhase(res.action.phase);
+};
+$("btnAGen").onclick = async () => {
+  const action = actionFormToAction();
+  $("aOut").textContent = "generating golden-config artifacts\u2026";
+  const res = await api("/api/action-generate", { action, resourceId: action.resourceId });
+  if (!res.ok) { $("aOut").textContent = "ERROR: " + (res.error || "failed"); return; }
+  $("aOut").textContent =
+    "// golden-config TEMPLATE (" + res.templateName + ")\n" + res.templateXml +
+    "\n// per-device APPLICATION binding\n" + res.applicationXml +
+    "\n// CWM config-push STATE (Serverless Workflow)\n" + JSON.stringify(res.pushState, null, 2) +
+    (res.savedTo ? "\n\n\u2714 saved artifacts: " + res.savedTo : "") +
+    (res.saveError ? "\n(save warning: " + res.saveError + ")" : "");
+};
+$("btnACreate").onclick = async () => {
+  const action = actionFormToAction();
+  if (!confirm("Test-load golden-config template '" + (action.name || "") + "' into the baseline NSO (.29) for a syntax check? The migration itself pushes config on CNC's embedded NSO.")) return;
+  $("aOut").textContent = "test-loading template into baseline NSO (.29)…";
+  const res = await api("/api/action-create-nso", { action });
+  $("aOut").textContent = (res.ok ? "✔ loaded '" + res.templateName + "' into baseline NSO (.29)\n\n" : "✖ " + (res.error || "failed") + "\n\n") +
+    (res.output || "");
+};
+$("btnAToWf").onclick = async () => {
+  const action = actionFormToAction();
+  const workflow = $("aWfName").value.trim() || "SRv6-Migration-MOP";
+  const apply = !!SID;   // implicit: apply to the live workflow when connected, else preview
+  $("aOut").textContent = apply ? "adding config-push state to " + workflow + "\u2026" : "generating config-push state (connect to CNC to add it live)\u2026";
+  const res = await api("/api/action-to-workflow", { action, workflow, apply, sid: SID, resourceId: action.resourceId });
+  if (!res.ok) { $("aOut").textContent = "ERROR: " + (res.error || "failed"); return; }
+  let m = "// config-push state for workflow '" + res.workflow + "'\n" + JSON.stringify(res.state, null, 2);
+  if (apply) {
+    m += "\n\n" + (res.applied
+      ? "\u2714 appended state '" + res.added + "' to live workflow (HTTP " + res.applyStatus + ")"
+      : "\u2716 not applied: " + (res.applyError || ("HTTP " + res.applyStatus)) +
+        (res.workflowKeys ? "\nworkflow keys: " + res.workflowKeys.join(", ") : ""));
+  }
+  $("aOut").textContent = m;
+};
+
+// ---- login (backend performs CAS, holds the token) ----
+$("btnLogin").onclick = async () => {
+  const cncHost = $("cncHost").value.trim();
+  const cncPort = $("cncPort").value.trim() || "30603";
+  const username = $("cncUser").value.trim() || "admin";
+  const password = $("cncPass").value;
+  if (!cncHost || !password) { $("startOut").textContent = "enter CNC IP and password"; return; }
+  $("loginState").textContent = "● connecting…";
+  const res = await api("/api/login", { cncHost, cncPort, username, password });
+  $("cncPass").value = "";
+  if (!res.ok) {
+    SID = null; $("btnStart").disabled = true;
+    $("loginState").textContent = "● login failed";
+    $("startOut").textContent = "✖ " + res.error;
+    return;
+  }
+  SID = res.sid;
+  $("loginState").innerHTML = `<span class="on">● connected</span> as ${res.user} to ${res.cnc}`;
+  $("btnStart").disabled = false;
+  pollMigration(); runVpnStatus(true);   // pick up any in-progress run + service status
+  // confirm token by listing the migration workflows
+  const wf = await api("/api/workflows", { sid: SID });
+  if (wf.ok) {
+    $("startOut").textContent = "✔ authenticated — " + wf.count + " workflows visible\n" +
+      "migration workflows:\n" + wf.migration.map(w => "  • " + w.name + ":" + w.version).join("\n");
+  } else {
+    $("startOut").textContent = "connected, but workflow list failed: " + wf.error;
+  }
+};
+
+// ---- webex: check room (no post) / test (posts a message) ----
+async function webexCheck(sendTest) {
+  const token = $("wbxToken").value.trim();
+  const roomId = $("wbxRoom").value.trim();
+  const spaceName = $("wbxSpace").value.trim();
+  if (!token) { $("webexOut").textContent = "enter the Webex bot token first"; return; }
+  if (!roomId && !spaceName) { $("webexOut").textContent = "enter a Room ID or a Space name"; return; }
+  $("webexOut").textContent = sendTest ? "testing Webex…" : "checking room…";
+  const res = await api("/api/webex-check", { token, roomId, spaceName, test: !!sendTest });
+  if (!res.ok) {
+    let m = "✖ " + res.error;
+    if (res.identity) m += "\nauthenticated as: " + res.identity;
+    if (res.resolvedRoomId) m += "\nresolved Room ID: " + res.resolvedRoomId;
+    if (res.similar && res.similar.length) m += "\nsimilar spaces: " + res.similar.join(", ");
+    $("webexOut").textContent = m;
+    return;
+  }
+  if (res.resolvedRoomId && !$("wbxRoom").value.trim()) $("wbxRoom").value = res.resolvedRoomId;
+  let m = "✔ token valid — " + (res.isBot ? "bot" : "user") + ": " + res.identity;
+  if (res.room) m += "\nroom: " + res.room + (res.roomType ? " (" + res.roomType + ")" : "");
+  if (res.resolvedRoomId) m += "\nresolved Room ID: " + res.resolvedRoomId;
+  if (res.members !== undefined) m += "\nmembers: " + res.members;
+  if (res.botIsMember !== undefined)
+    m += "\nbot is a member: " + (res.botIsMember ? "✔ yes" : "✖ NO — add the bot to the space");
+  if (res.testPosted !== undefined)
+    m += "\ntest message posted: " + (res.testPosted ? "✔ yes (check the space)" : "✖ no (HTTP " + res.testStatus + ")");
+  $("webexOut").textContent = m;
+}
+$("btnCheckRoom").onclick = () => webexCheck(false);
+$("btnWebex").onclick = () => webexCheck(true);
+
+// ---- webex approval relay: forwards room replies to CWM as webex-approval events ----
+function renderRelay(s) {
+  if (!s || !s.ok) { $("relayOut").textContent = "relay: " + ((s && s.error) || "unavailable"); return; }
+  let m = s.running
+    ? `● relay RUNNING — room ${s.room || "?"} — polls ${s.polls} (every ${s.interval}s), watching ${s.seen} msgs`
+    : "○ relay stopped";
+  if (s.startedAt && s.running) m += "\nstarted: " + s.startedAt;
+  if (s.lastError) m += "\nlast error: " + s.lastError;
+  if (s.posted && s.posted.length) {
+    m += "\n\nforwarded approvals:\n" + s.posted.map(p =>
+      `  ${p.ts}  ${p.person}: "${p.text}"  → HTTP ${p.status}${p.error ? " (" + p.error + ")" : ""}`).join("\n");
+  } else if (s.running) {
+    m += "\n\n(waiting for a 'proceed' / 'stop' reply in the room…)";
+  }
+  $("relayOut").textContent = m;
+}
+async function relayStatus() { renderRelay(await api("/api/relay/status", {})); }
+$("btnRelayStart").onclick = async () => {
+  if (!SID) { $("relayOut").textContent = "connect to CNC first"; return; }
+  const token = $("wbxToken").value.trim();
+  const roomId = $("wbxRoom").value.trim();
+  if (!token || !roomId) { $("relayOut").textContent = "enter the Webex token and Room ID first"; return; }
+  $("relayOut").textContent = "starting relay…";
+  const res = await api("/api/relay/start", { sid: SID, token, roomId });
+  if (!res.ok) { $("relayOut").textContent = "✖ " + res.error; return; }
+  await relayStatus();
+};
+$("btnRelayStop").onclick = async () => {
+  await api("/api/relay/stop", {});
+  await relayStatus();
+};
+setInterval(() => { if (SID) relayStatus(); }, 6000);
+relayStatus();
+
+// ---- start migration ----
+$("btnStart").onclick = async () => {
+  if (!SID) { $("startOut").textContent = "connect first"; return; }
+  if (!confirm("Start SRv6-Migration-MOP? It begins at the baseline pre-check and pauses at each Webex approval gate.")) return;
+  $("startOut").textContent = "starting…";
+  const input = {};
+  const room = $("wbxRoom").value.trim();
+  const token = $("wbxToken").value.trim();
+  if (room) input.WEBEX_ROOM_ID = room;
+  if (token) input.WEBEX_ACCESS_TOKEN = token;
+  const l3 = $("l3vpn").value.trim();
+  const l2 = $("l2vpn").value.trim();
+  const loc = $("srv6loc").value.trim();
+  const rr6 = $("rrv6ip").value.trim();
+  if (l3) input.L3VPN_NAME = l3;
+  if (l2) input.L2VPN_NAME = l2;
+  if (loc) input.SRV6_LOCATOR = loc;
+  if (rr6) input.RRV6_IP = rr6;
+  const res = await api("/api/start", { sid: SID, input });
+  if (res.ok) {
+    $("startOut").textContent = "✔ started (" + res.started.path + " → HTTP " +
+      res.started.status + ")\n" + res.started.resp;
+    pollMigration();
+  } else {
+    $("startOut").textContent = "✖ " + (res.error || "failed") + "\n\nattempts:\n" +
+      (res.attempts || []).map(a => `  ${a.path} → ${a.status}`).join("\n");
+  }
+};
+
+// ---- registry ----
+async function loadRegistry() {
+  const res = await api("/api/checks");
+  renderRegistry(res.checks || []);
+}
+function renderRegistry(checks) {
+  const el = $("registry");
+  if (!checks.length) { el.textContent = "none yet"; return; }
+  el.innerHTML = checks.map(c => `<div class="chk">
+    <span class="pill ${c.type}">${c.type} · P${c.phase || "?"}</span>
+    <b>${escapeHtml(c.name || "")}</b>
+    <span class="mono">${escapeHtml(c.node || "")}: ${escapeHtml(c.command || "")}</span>
+    <span style="color:#8fa3c7">⇒ ${escapeHtml(c.expect || "")}</span>
+  </div>`).join("");
+}
+
+function highlightPhase(p) {
+  document.querySelectorAll(".phase").forEach(e =>
+    e.classList.toggle("active", e.dataset.p === String(p)));
+}
+
+// ---- live migration progress (CWM job -> phase strip + banner + notifications) ----
+function renderMigPhases(phases) {
+  document.querySelectorAll(".phase").forEach(e => e.classList.remove("done", "active", "failed"));
+  (phases || []).forEach(p => {
+    const el = document.querySelector('.phase[data-p="' + p.index + '"]');
+    if (!el) return;
+    if (p.status === "done") el.classList.add("done");
+    else if (p.status === "current") el.classList.add("active");
+    else if (p.status === "failed") el.classList.add("failed");
+  });
+}
+function renderMigBanner(s) {
+  const el = $("migBanner"); if (!el) return;
+  if (!s || !s.ok || !s.jobId) { el.className = "migbanner hidden"; return; }
+  const ov = s.overall || "";
+  const cur = (s.phases && s.phases[s.currentPhase]) ? s.phases[s.currentPhase].label : ("phase " + s.currentPhase);
+  let cls = "migbanner", icon = "\u25b6", txt = ov + " \u2014 " + cur;
+  if (ov === "RUNNING") { cls += " run"; icon = "\u25b6"; txt = "Running \u2014 " + cur; }
+  else if (ov === "COMPLETED") { cls += " ok"; icon = "\u2705"; txt = "Completed \u2014 SRv6 migration done"; }
+  else if (ov === "FAILED") { cls += " bad"; icon = "\u2716"; txt = "FAILED at " + cur + (s.failedSteps && s.failedSteps.length ? " \u2014 " + s.failedSteps.join(", ") : ""); }
+  el.className = cls;
+  el.innerHTML = '<span class="migicon">' + icon + '</span><b>SRv6 Migration</b> ' + escapeHtml(txt) +
+    '<span class="migjob mono">job ' + String(s.jobId).slice(0, 8) + '</span>';
+}
+let _lastMigPhase = -1;
+async function pollMigration() {
+  if (!SID) return;
+  let s; try { s = await api("/api/migration-status", { sid: SID }); } catch { return; }
+  if (!s || !s.ok || !s.jobId) { MIG_ACTIVE = false; return; }
+  MIG_ACTIVE = s.overall === "RUNNING";
+  renderMigPhases(s.phases);
+  renderMigBanner(s);
+  if (s.currentPhase !== _lastMigPhase) {   // refresh L3VPN/L2VPN status as the run reaches the service phases
+    _lastMigPhase = s.currentPhase;
+    if (s.currentPhase >= 5 || s.overall === "COMPLETED") runVpnStatus(true);
+  }
+}
+setInterval(() => { if (SID) pollMigration(); }, 6000);
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
+}

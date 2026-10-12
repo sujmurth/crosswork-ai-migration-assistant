@@ -1,0 +1,35 @@
+{
+  "workflowId": "a2ad53a6-0ebc-4b4f-bb14-e9dc61b1c0eb",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-08-11T18:36:29.082879Z",
+  "name": "genericWebexNotification",
+  "version": "1.0.1",
+  "description": "No-op (Webex handled by portal); neutralized to avoid sync REST timeout",
+  "definition": {
+    "id": "webexNotify",
+    "name": "genericWebexNotification",
+    "start": "noop",
+    "states": [
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "noop",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "1.0.1",
+    "description": "No-op (Webex handled by portal); neutralized to avoid sync REST timeout",
+    "specVersion": "0.9"
+  },
+  "wfTags": [
+    "webex"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "232c3b5e120644bc4143c28a6490665c3018f74a23ffe9065da1b62e068f07b0"
+}

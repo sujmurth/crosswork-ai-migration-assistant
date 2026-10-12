@@ -1,0 +1,18 @@
+<golden-config xmlns="http://example.com/golden-config">
+  <application>
+    <name>cwm-gc-ipv6-loopback-node-2</name>
+    <device>node-2</device>
+    <jinja-template>
+      <template>ipv6-loopback-template</template>
+      <version>1</version>
+    </jinja-template>
+  </application>
+  <application>
+    <name>cwm-gc-ipv6-loopback-node-8</name>
+    <device>node-8</device>
+    <jinja-template>
+      <template>ipv6-loopback-template</template>
+      <version>1</version>
+    </jinja-template>
+  </application>
+</golden-config>

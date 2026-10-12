@@ -1,0 +1,336 @@
+{
+  "workflowId": "e812ac50-acb1-4eab-a05f-7805f4e11b1e",
+  "createdAt": "2026-02-18T01:36:29.646488Z",
+  "updatedAt": "2026-06-29T21:45:16.737163Z",
+  "name": "juniper-sw-version-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks the device version with the image version provided in the input. If there is a mismatch, then the the version obtained from the device is searched in the image file name provided. If there is a match then the stauts is \"success\", otherwise \"warning\" is returned and \"failure\" is returned in case of an execution error.",
+  "definition": {
+    "id": "juniper-sw-version-cwm-sol",
+    "name": "juniper-sw-version-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Version check failed.",
+              "condition": ".\"software-information\".\"junos-version\" != \"\" or .\"software-information\".\"junos-version\" != null"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for version check for Juniper devices"
+            }
+          ]
+        },
+        "transition": "check-version"
+      },
+      {
+        "name": "check-version",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-software-information/get-software-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "validate-version"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "validate-version",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ (.rakutilExecutorData.stash.output.\"software-information\".\"junos-version\" == .\"app-data\".data.imageVersion ) }",
+            "transition": "return-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "validate-version-failover"
+        }
+      },
+      {
+        "name": "validate-version-failover",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ (.rakutilExecutorData.stash.output.\"software-information\".\"junos-version\" as $version | if (.\"app-data\".data.softwareImages[0] | contains($version)) then true else false end) }",
+            "transition": "return-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-version-failure"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "version check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Device version check passed.\"}}"
+        }
+      },
+      {
+        "name": "return-version-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Version check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Version check failed.\", stash: [.rakutilExecutorData.stash.output.\"software-information\".\"junos-version\"]}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "version check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Version check failed\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "version check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks the device version with the image version provided in the input. If there is a mismatch, then the the version obtained from the device is searched in the image file name provided. If there is a match then the stauts is \"success\", otherwise \"warning\" is returned and \"failure\" is returned in case of an execution error.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "swVersionCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource",
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": [
+                  "softwareImages",
+                  "imageVersion"
+                ],
+                "properties": {
+                  "imageVersion": {
+                    "type": "string"
+                  },
+                  "softwareImages": {
+                    "type": "array"
+                  }
+                }
+              },
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "d2c7d319cfb4dc674efe7d6640c21cd93fce5267fa8df3d511c1feda5bb4f215"
+}

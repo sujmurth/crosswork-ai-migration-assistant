@@ -1,0 +1,48 @@
+{
+  "name": "workflow-author-agent",
+  "full_name": "Workflow Author Agent",
+  "description": "Authors dry-run-validated CWM golden-config workflows from a natural-language request (push config to devices + optional show-command verification), then imports them to CWM. Control flow is a fixed, proven skeleton; only parameters are filled; every payload is golden-config dry-run validated before import.",
+  "tags": [
+    "authoring",
+    "automation",
+    "crosswork",
+    "cwm",
+    "golden-config",
+    "workflow",
+    "workflow-author-agent"
+  ],
+  "image": "apps/cisco-crosswork-ai/workflow-author-agent",
+  "image_tag": "sha256-213a0032057a7132c33c8b6d51ae7b1e",
+  "version": "1.0.0",
+  "type": "CUSTOM",
+  "source": "Cisco CWAI",
+  "capabilities": [
+    "llm-proxy",
+    "mcp-tools"
+  ],
+  "metadata": {
+    "memory_limit": "2Gi",
+    "storage_size": "100Mi",
+    "suggestion": "I want to author a CWM workflow",
+    "cpu_limit": "1000m",
+    "llm_models": [],
+    "max_runtimes": 1,
+    "memory_request": "1Gi",
+    "cpu_request": "500m",
+    "max_instances_in_runtime": 1
+  },
+  "settings": {
+    "approval_required_tools": [
+      "import_workflow",
+      "apply_golden_config"
+    ],
+    "max_iterations": 20,
+    "temperature": 0
+  },
+  "allowed_roles": [
+    "admin",
+    "operator"
+  ],
+  "status": "Active",
+  "created_at": "2026-10-07T20:13:06Z"
+}

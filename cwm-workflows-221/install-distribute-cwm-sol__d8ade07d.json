@@ -1,0 +1,795 @@
+{
+  "workflowId": "d8ade07d-675d-4ebd-8f2a-9b98041465f2",
+  "createdAt": "2026-02-18T01:36:29.187142Z",
+  "updatedAt": "2026-06-29T21:45:15.089761Z",
+  "name": "install-distribute-cwm-sol",
+  "version": "2.1.0",
+  "description": "Distributes images to a device. The input and output has been updated to follow the input and output schema. The output schema is given in metadata. Failure: If the device is a Cisco device then the EMS activity executor is called, otherwise NSO activity executor is called. If the EMS/NSO adapter return failure status then the workflow would return failure.",
+  "definition": {
+    "id": "install-distribute-cwm-sol",
+    "name": "install-distribute-cwm-sol",
+    "start": "check-vendor",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-vendor",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "install-EMS",
+            "condition": "${(.\"app-data\".device.vendor | ascii_downcase == \"cisco systems\")}",
+            "transition": {
+              "nextState": "check-EMS-flag"
+            }
+          },
+          {
+            "name": "install-NSO",
+            "condition": "${(.\"app-data\".device.vendor | ascii_downcase == \"juniper networks\")}",
+            "transition": {
+              "nextState": "form-distribute-action-nso"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "form-distribute-action-nso"
+        }
+      },
+      {
+        "name": "check-EMS-flag",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".data.useEMSResource == false) }",
+            "transition": "form-distribute-action-nso-check-productseries"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-swimPreference-ems"
+        }
+      },
+      {
+        "name": "form-distribute-action-nso-check-productseries",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "form-distribute-action-nso"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") }",
+            "transition": "form-distribute-action-cisco-xe-nso"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "name": "check-swimPreference-ems",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-swimPreference",
+            "condition": "${ (.\"distribute\".swimPreference != null) }",
+            "transition": "check-swimPreference-input"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-productseries-ems"
+        }
+      },
+      {
+        "name": "check-swimPreference-input",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-input-only-imageTransferProtocolOrder",
+            "condition": "${(.\"distribute\".swimPreference.imageTransferProtocolOrder != null) and (.\"distribute\".swimPreference.copyByServer == null)}",
+            "transition": {
+              "nextState": "check-swim-imageTransferProtocolOrder-input"
+            }
+          },
+          {
+            "name": "check-input-only-copyByServer",
+            "condition": "${(.\"distribute\".swimPreference.imageTransferProtocolOrder == null) and (.\"distribute\".swimPreference.copyByServer != null)}",
+            "transition": {
+              "nextState": "form-copyByServer-input"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-both-swimPreference-input"
+        }
+      },
+      {
+        "name": "check-swim-imageTransferProtocolOrder-input",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-input",
+            "condition": "${( .distribute.swimPreference.imageTransferProtocolOrder | map(.protocol | ascii_upcase) - [\"SCP\", \"SFTP\", \"FTP\", \"TFTP\", \"HTTP\", \"TELNET\", \"SSH\"] == [] )}",
+            "transition": {
+              "nextState": "form-imageTransferProtocolOrder-input"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "swim-preference-input-validation-error"
+        }
+      },
+      {
+        "name": "form-imageTransferProtocolOrder-input",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-swim-preference",
+        "stateDataFilter": {
+          "output": "${.activity.type=\"SetSWIMPreferences\" | .swimPreferenceList += [{\"key\": \"ImageTransferProtocolOrder\", \"value\": (.distribute.swimPreference.imageTransferProtocolOrder | map(.protocol | ascii_upcase) | join(\",\"))}]}"
+        }
+      },
+      {
+        "name": "form-copyByServer-input",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-swim-preference",
+        "stateDataFilter": {
+          "output": "${.activity.type=\"SetSWIMPreferences\" | .swimPreferenceList += [{\"key\": \"copyByServer\", \"value\": (if .distribute.swimPreference.copyByServer then \"Y\" else \"N\" end)}]}"
+        }
+      },
+      {
+        "name": "check-both-swimPreference-input",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-input",
+            "condition": "${( .distribute.swimPreference.imageTransferProtocolOrder | map(.protocol | ascii_upcase) - [\"SCP\", \"SFTP\", \"FTP\", \"TFTP\", \"HTTP\", \"TELNET\", \"SSH\"] == [] )}",
+            "transition": {
+              "nextState": "form-both-swimPreference-input"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "swim-preference-input-validation-error"
+        }
+      },
+      {
+        "name": "form-both-swimPreference-input",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-swim-preference",
+        "stateDataFilter": {
+          "output": "${.activity.type=\"SetSWIMPreferences\" | .swimPreferenceList += [{\"key\": \"ImageTransferProtocolOrder\", \"value\": (.distribute.swimPreference.imageTransferProtocolOrder | map(.protocol | ascii_upcase) | join(\",\"))}, {\"key\": \"copyByServer\", \"value\": (if .distribute.swimPreference.copyByServer then \"Y\" else \"N\" end)}]}"
+        }
+      },
+      {
+        "name": "set-swim-preference",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "GetSwim",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "emsactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ .activityOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling emsactivityexecutor to do set SWIM preference"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-set-swim-job"
+      },
+      {
+        "name": "validate-set-swim-job",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "get-length",
+            "condition": "${(.jobResult | ascii_downcase == \"success\")}",
+            "transition": {
+              "nextState": "check-productseries-ems"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "swim-preference-error"
+        }
+      },
+      {
+        "name": "check-productseries-ems",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "form-distribute-action-cisco-xr-ems"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") }",
+            "transition": "form-distribute-action-cisco-xe-ems"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "name": "form-distribute-action-cisco-xr-ems",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "initialize-counter-cisco",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"distribute\" | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .activity.input.location=(if (.distribute.location and .distribute.location != \"\") then .distribute.location else \"harddisk:\" end) | .deviceIp=.\"app-data\".device.ip | .emsResourceId=\"EMS\" | (if(.distribute.vrfName != null and .distribute.vrfName != \"\") then .activity.input.vrf=.distribute.vrfName else . end) | .activity.input.fpd=(if .distribute.fpd == true then \"true\" else \"false\" end) | .activity.input.isISSUUpgrade=(if .distribute.isISSUUpgrade == true then \"true\" else \"false\" end)}"
+        }
+      },
+      {
+        "name": "form-distribute-action-cisco-xe-ems",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "initialize-counter-cisco",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"distribute\" | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .activity.input.location=(if (.distribute.location and .distribute.location != \"\") then .distribute.location else (if ((.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\")) then \"flash:\" else \"bootflash:\" end) end) | .deviceIp=.\"app-data\".device.ip | .emsResourceId=\"EMS\" | (if(.vrfName != null and .vrfName != \"\") then .activity.input.vrf=.vrfName else . end) | .activity.input.fpd=(if .distribute.fpd == true then \"true\" else \"false\" end) | .activity.input.isISSUUpgrade=(if .distribute.isISSUUpgrade == true then \"true\" else \"false\" end) }"
+        }
+      },
+      {
+        "name": "form-distribute-action-nso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "initialize-counter-nso",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"distribute\" | .activity.input.repository=.\"app-data\".data.repository | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .activity.input.location=(if (.distribute.location and .distribute.location != \"\") then .distribute.location else (if (.\"app-data\".device.vendor | ascii_downcase == \"cisco systems\") then \"harddisk:\" else \"/var/tmp\" end) end) | .device=.\"app-data\".device.name | .resourceId=.\"app-data\".resource | (if(.distribute.vrfName != null and .distribute.vrfName != \"\") then .activity.input.vrf=.distribute.vrfName else . end) }"
+        }
+      },
+      {
+        "name": "form-distribute-action-cisco-xe-nso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "initialize-counter-nso",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"distribute\" | .activity.input.repository=.\"app-data\".data.repository | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .activity.input.location=(if (.distribute.location and .distribute.location != \"\") then .distribute.location else (if ((.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\")) then \"flash:\" else \"bootflash:\" end) end) | .device=.\"app-data\".device.name | .resourceId=.\"app-data\".resource | (if(.distribute.vrfName != null and .distribute.vrfName != \"\") then .activity.input.vrf=.distribute.vrfName else . end) }"
+        }
+      },
+      {
+        "data": {
+          "counter": 0
+        },
+        "name": "initialize-counter-nso",
+        "type": "inject",
+        "transition": "execute-distribute-nso"
+      },
+      {
+        "name": "wait-for-20sec-nso",
+        "type": "sleep",
+        "duration": "PT20S",
+        "transition": "execute-distribute-nso"
+      },
+      {
+        "data": {
+          "counter": 0
+        },
+        "name": "initialize-counter-cisco",
+        "type": "inject",
+        "transition": "execute-distribute-cisco"
+      },
+      {
+        "name": "wait-for-20sec-cisco",
+        "type": "sleep",
+        "duration": "PT20S",
+        "transition": "execute-distribute-cisco"
+      },
+      {
+        "name": "execute-distribute-cisco",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "execute-distribute-cisco",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "emsactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .activityOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling emsactivityexecutor to do distribute operation"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT240M"
+        },
+        "transition": "check-distribute-status"
+      },
+      {
+        "name": "execute-distribute-nso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "execute-distribute-nso",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "actionexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .activityOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling actionexecutor to do distribute operation"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT240M"
+        },
+        "transition": "check-distribute-status"
+      },
+      {
+        "name": "check-distribute-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${(.activityOutput.jobDetails and (.activityOutput.jobDetails.jobResult | ascii_downcase == \"success\")) or (.activityOutput.status and (.activityOutput.status | ascii_downcase == \"success\"))}",
+            "transition": "distribute-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-counter"
+        }
+      },
+      {
+        "name": "check-counter",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .counter < 5 }",
+            "transition": "increment-counter"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "distribute-failed"
+        }
+      },
+      {
+        "name": "increment-counter",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-resourceId",
+        "stateDataFilter": {
+          "output": "${ .counter = .counter + 1 }"
+        }
+      },
+      {
+        "name": "check-resourceId",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .emsResourceId==\"EMS\" }",
+            "transition": "wait-for-20sec-cisco"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "wait-for-20sec-nso"
+        }
+      },
+      {
+        "name": "distribute-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Distribution of ${(.\"app-data\".data.softwareImages | join(\",\")) is successful"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": (\"Distribution of \" + (.\"app-data\".data.softwareImages | join(\",\")) + \" is successful.\")}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      },
+      {
+        "end": true,
+        "name": "distribute-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Distribution of ${(.\"app-data\".data.softwareImages | join(\",\")) failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Distribute failed\" end) end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "swim-preference-input-validation-error",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"The input for set swim preference is not proper. Values for copyByServer must be boolean and ImageTransferProtocolOrder must be among these: [SCP, SFTP, FTP, TFTP, HTTP, TELNET, SSH]\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "swim-preference-error",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\":  (if .errors[0].error != null then \"Error is: \" + .errors[0].error else (if .message != null then .message else \"The set swim preferences operation failed.\" end) end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Error while executing distribute activity on resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Error while executing activity on resource.\" end) end)}}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT240M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Distributes images to a device. The input and output has been updated to follow the input and output schema. The output schema is given in metadata. Failure: If the device is a Cisco device then the EMS activity executor is called, otherwise NSO activity executor is called. If the EMS/NSO adapter return failure status then the workflow would return failure.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "Software Image Distribution Configuration",
+        "properties": {
+          "distribute": {
+            "type": "object",
+            "title": "Distribution Settings",
+            "properties": {
+              "fpd": {
+                "type": "boolean",
+                "title": "FPD Upgrade",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "Enable Field Programmable Device (FPD) upgrade during distribution"
+              },
+              "vrfName": {
+                "type": "string",
+                "title": "VRF Name",
+                "pattern": "^[a-zA-Z0-9_\\-]+$",
+                "examples": [
+                  "management",
+                  "default",
+                  "vrf-mgmt"
+                ],
+                "maxLength": 32,
+                "minLength": 1,
+                "description": "Virtual Routing and Forwarding (VRF) instance name for network isolation"
+              },
+              "location": {
+                "type": "string",
+                "title": "Storage Location",
+                "pattern": "^[a-zA-Z0-9_\\-/:.]+$",
+                "examples": [
+                  "harddisk:",
+                  "bootflash:",
+                  "flash:",
+                  "/var/tmp"
+                ],
+                "maxLength": 100,
+                "minLength": 1,
+                "description": "Target storage location for distributing software images"
+              },
+              "isISSUUpgrade": {
+                "type": "boolean",
+                "title": "ISSU Upgrade Mode",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "Enable In-Service Software Upgrade (ISSU) mode for zero-downtime distribution"
+              },
+              "swimPreference": {
+                "type": "object",
+                "title": "SWIM Transfer Preferences",
+                "properties": {
+                  "copyByServer": {
+                    "type": "boolean",
+                    "title": "Copy By Server",
+                    "default": false,
+                    "examples": [
+                      true,
+                      false
+                    ],
+                    "description": "Enable server-side copy operation for image transfer"
+                  },
+                  "imageTransferProtocolOrder": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "title": "Protocol Configuration",
+                      "required": [
+                        "protocol"
+                      ],
+                      "properties": {
+                        "protocol": {
+                          "enum": [
+                            "scp",
+                            "sftp",
+                            "ftp",
+                            "tftp",
+                            "http",
+                            "telnet",
+                            "ssh"
+                          ],
+                          "type": "string",
+                          "title": "Transfer Protocol",
+                          "examples": [
+                            "scp",
+                            "sftp",
+                            "ftp"
+                          ],
+                          "description": "Network protocol for image transfer"
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "title": "Protocol Order",
+                    "examples": [
+                      [
+                        {
+                          "protocol": "scp"
+                        },
+                        {
+                          "protocol": "sftp"
+                        }
+                      ],
+                      [
+                        {
+                          "protocol": "ftp"
+                        },
+                        {
+                          "protocol": "tftp"
+                        }
+                      ]
+                    ],
+                    "maxItems": 7,
+                    "minItems": 1,
+                    "description": "Ordered list of protocols to attempt for image transfer",
+                    "uniqueItems": true
+                  }
+                },
+                "description": "Software Image Management (SWIM) transfer protocol preferences",
+                "additionalProperties": false
+              }
+            },
+            "description": "Settings for software image distribution process",
+            "additionalProperties": false
+          }
+        },
+        "description": "Configuration for distributing software images to network devices",
+        "additionalProperties": true
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.install-distribute-cwm-sol",
+  "path": "",
+  "hashSum": "75ba5004ceac6d0f8bb7ff264180290cfe546b4b71338e6f26c79dd461bd4399"
+}

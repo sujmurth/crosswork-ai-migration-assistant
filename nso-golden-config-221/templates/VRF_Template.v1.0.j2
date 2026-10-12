@@ -1,0 +1,46 @@
+vrf {{ vrf }}
+ address-family ipv4 unicast
+  import route-target
+   100:100
+  !
+  export route-target
+   100:100
+  !
+ !
+ address-family ipv6 unicast
+ !
+!
+interface preconfigure {{ intf }}
+ description {{ vrf }} Interface
+ vrf {{ vrf }}
+!
+
+logging trap informational
+logging console disable
+logging history informational
+logging monitor debugging
+logging buffered 3072000
+logging buffered debugging
+logging buffered discriminator
+ nomatch1 "service"
+!
+logging facility local7
+logging {{ logging_server }} vrf {{ vrf }} severity info port default
+!
+logging source-interface {{ intf }} vrf {{ vrf }}
+logging suppress duplicates
+service timestamps log datetime localtime msec show-timezone
+service timestamps debug datetime localtime msec show-timezone
+
+snmp-server community {{ community }} RW
+call-home
+ service active
+ contact smart-licensing
+ profile {{ profile }}
+  active
+  destination transport-method email disable
+  destination transport-method http
+ !
+! 
+netconf agent tty
+!

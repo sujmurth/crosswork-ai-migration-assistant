@@ -1,0 +1,40 @@
+{
+  "name": "ct-srv6",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\nrouter bgp {{ local_as }}\n  vrf {{ vrf_name }}\n    address-family {{ address_family }} unicast\n{% if mpls_alloc == \"enable\" %}\n      mpls alloc enable\n{% else %}\n      no mpls alloc enable\n{% endif %}\n    segment-routing srv6\n      locator {{ locator_name }}\n      alloc mode {{ alloc_mode }}\n      exit\n    exit\n  exit\nexit\n",
+      "variable": [
+        {
+          "name": "address_family",
+          "value": "ipv4"
+        },
+        {
+          "name": "alloc_mode",
+          "value": "per-vrf"
+        },
+        {
+          "name": "local_as",
+          "value": "65000"
+        },
+        {
+          "name": "locator_name",
+          "value": "MAIN"
+        },
+        {
+          "name": "mpls_alloc",
+          "value": "enable"
+        },
+        {
+          "name": "vrf_name",
+          "value": "vpn-101"
+        }
+      ]
+    }
+  ]
+}

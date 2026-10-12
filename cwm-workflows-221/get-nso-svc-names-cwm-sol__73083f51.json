@@ -1,0 +1,155 @@
+{
+  "workflowId": "73083f51-3312-4fe5-aa03-43232e7370cd",
+  "createdAt": "2026-02-18T01:37:33.327133Z",
+  "updatedAt": "2026-02-18T01:37:33.327133Z",
+  "name": "get-nso-svc-names-cwm-sol",
+  "version": "2.1.0",
+  "description": "Retrieves the names of applications from a specified NSO service endpoint using the NSO activity executor. The workflow queries the endpoint, validates the response, and returns a list of service names or an error message. The field to fetch (e.g., 'name') is based on user input.",
+  "definition": {
+    "id": "get-nso-svc-names-cwm-sol",
+    "name": "get-nso-svc-names-cwm-sol",
+    "start": "get-nso-svc-names",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "get-nso-svc-names",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ . }",
+              "toStateData": ".servicesPresentResult",
+              "fromStateData": " ${{\"activity\": {\"path\": (\"restconf/data/\" + .serviceEndpoint + \"?fields=\" + .serviceKey), \"resourceId\": .\"app-data\".resource, \"method\":\"get\"} }}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "validate-output"
+      },
+      {
+        "name": "validate-output",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if result is success",
+            "condition": "${ .servicesPresentResult.activityOutput.status == \"success\" }",
+            "transition": "capture-services-names"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-error"
+        }
+      },
+      {
+        "name": "capture-services-names",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Successfully retrieved service endpoints.\", \"serviceNames\": (if (.serviceKey | contains(\";\")) then .servicesPresentResult.activityOutput.output | to_entries | .[0].value else .serviceKey as $filterKey | .servicesPresentResult.activityOutput.output | to_entries | .[0].value | map(.[$filterKey]) end)}}"
+        }
+      },
+      {
+        "name": "return-error",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT5M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Failed to retrieve service data.\", \"error\": .servicesPresentResult}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT5M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Abnormal exit while retrieving Services names data\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT5M"
+        },
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT5M"
+      }
+    },
+    "description": "Retrieves the names of applications from a specified NSO service endpoint using the NSO activity executor. The workflow queries the endpoint, validates the response, and returns a list of service names or an error message. The field to fetch (e.g., 'name') is based on user input.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "GetNsoSvcNamesSchema",
+        "required": [
+          "serviceEndpoint",
+          "serviceKey"
+        ],
+        "properties": {
+          "serviceKey": {
+            "type": "string",
+            "title": "Service Key",
+            "examples": [
+              "name",
+              "id",
+              "id;name",
+              "service-id;service-name;status"
+            ],
+            "description": "The field(s) to fetch from the response. For single field, use field name (e.g., 'name'). For composite keys with multiple fields, provide semicolon-separated values (e.g., 'id;name'). When composite keys are used, all specified fields will be returned as-is from the service response."
+          },
+          "serviceEndpoint": {
+            "type": "string",
+            "title": "Service Endpoint",
+            "description": "The NSO Service API endpoint to query for services"
+          }
+        }
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "cwm.forms.get-nso-svc-names-cwm-sol",
+  "path": "",
+  "hashSum": "4eddaf1350c6bff4e4908453c3e967384dadeccb65c1c20a9c3893364cd65a1b"
+}

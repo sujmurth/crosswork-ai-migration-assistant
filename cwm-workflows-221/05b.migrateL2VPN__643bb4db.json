@@ -1,0 +1,92 @@
+{
+  "workflowId": "643bb4db-82ff-4244-abb3-ba100fc4b390",
+  "createdAt": "2026-08-25T19:34:06.164673Z",
+  "updatedAt": "2026-10-08T08:02:32.413823Z",
+  "name": "05b.migrateL2VPN",
+  "version": "1.0",
+  "description": "Apply EVPN VPWS SRv6 golden-config to node-2 and node-4",
+  "definition": {
+    "id": "migrateL2VPN-1.0",
+    "name": "05b.migrateL2VPN",
+    "start": "getClients",
+    "states": [
+      {
+        "data": {
+          "clients": [
+            {
+              "name": "node-2",
+              "source": "1",
+              "target": "2"
+            },
+            {
+              "name": "node-4",
+              "source": "2",
+              "target": "1"
+            }
+          ]
+        },
+        "name": "getClients",
+        "type": "inject",
+        "transition": "loopClients"
+      },
+      {
+        "end": true,
+        "mode": "sequential",
+        "name": "loopClients",
+        "type": "foreach",
+        "actions": [
+          {
+            "name": "applyL2VpnSrv6",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${ {\"golden-config:golden-config\": {\"application\": [ {\"device\": .client.name, \"jinja-template\": {\"template\": \"l2vpn-migrate-template\", \"version\": \"1\"}, \"name\": (\"cwm-gc-l2vpn-migrate-\" + .client.name), \"variable\": [ {\"name\": \"xconnect_group\", \"value\": \"vpn-129\"}, {\"name\": \"evi\", \"value\": \"4129\"}, {\"name\": \"target\", \"value\": (.client.target|tostring)}, {\"name\": \"source\", \"value\": (.client.source|tostring)}, {\"name\": \"locator\", \"value\": \"MAIN\"}, {\"name\": \"attachment_circuit\", \"value\": \"GigabitEthernet0/0/0/11.2129\"} ] } ]}} }",
+                  "path": "restconf/data/golden-config:golden-config?dry-run=native",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ],
+        "iterationParam": "client",
+        "inputCollection": "${ .clients }"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfPatch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      }
+    ],
+    "description": "Apply EVPN VPWS SRv6 golden-config to node-2 and node-4",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "SRv6-Migration",
+    "MOP",
+    "L2VPN"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "28dda7aa3f86ee66d754fe3cd1fe1d04575844a0273384efc13ba76520711746"
+}

@@ -1,0 +1,219 @@
+{
+  "ietf-l2vpn-ntw:vpn-services": {
+    "vpn-service": [
+      {
+        "vpn-id": "vpn-129",
+        "modified": {
+          "devices": ["node-2", "node-4"],
+          "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-4'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L2vpn-fp-internal-remote-site:flat-L2vpn-internal-remote-site-service[name='L2NM-vpn-129-internal'][pe='node-4']", "/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-2'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L2vpn-fp-internal-local-site:flat-L2vpn-internal-local-site-service[name='L2NM-vpn-129-internal'][pe='node-2']"]
+        },
+        "directly-modified": {
+          "services": ["/cisco-flat-L2vpn-fp-internal-local-site:flat-L2vpn-internal-local-site-service[name='L2NM-vpn-129-internal'][pe='node-2']", "/cisco-flat-L2vpn-fp-internal-remote-site:flat-L2vpn-internal-remote-site-service[name='L2NM-vpn-129-internal'][pe='node-4']"]
+        },
+        "plan-location": "/ietf-l2vpn-ntw:l2vpn-ntw/vpn-services/cisco-l2vpn-ntw:vpn-service-plan[vpn-id='vpn-129']",
+        "created": "2026-07-16T21:48:22.049926+00:00",
+        "last-modified": "2026-08-26T16:59:40.52605+00:00",
+        "last-run": "2026-08-26T16:59:41.492889+00:00",
+        "vpn-type": "ietf-vpn-common:vpws-evpn",
+        "vpn-nodes": {
+          "vpn-node": [
+            {
+              "vpn-node-id": "node-2",
+              "vpn-network-accesses": {
+                "vpn-network-access": [
+                  {
+                    "id": "2",
+                    "interface-id": "GigabitEthernet0/0/0/11",
+                    "connection": {
+                      "encapsulation": {
+                        "encap-type": "ietf-vpn-common:dot1q",
+                        "dot1q": {
+                          "cvlan-id": 2129
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "cisco-l2vpn-ntw:custom-template": [
+                {
+                  "name": "ct-evpn-srv6",
+                  "variable": [
+                    {
+                      "name": "LOCATOR",
+                      "value": "MAIN"
+                    }
+                  ]
+                }
+              ],
+              "cisco-l2vpn-ntw:te-service-mapping": {
+                "srv6": {
+                  "locator": "MAIN"
+                }
+              }
+            },
+            {
+              "vpn-node-id": "node-4",
+              "vpn-network-accesses": {
+                "vpn-network-access": [
+                  {
+                    "id": "1",
+                    "interface-id": "GigabitEthernet0/0/0/11",
+                    "connection": {
+                      "encapsulation": {
+                        "encap-type": "ietf-vpn-common:dot1q",
+                        "dot1q": {
+                          "cvlan-id": 2129
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "cisco-l2vpn-ntw:custom-template": [
+                {
+                  "name": "ct-evpn-srv6",
+                  "variable": [
+                    {
+                      "name": "LOCATOR",
+                      "value": "MAIN"
+                    }
+                  ]
+                }
+              ],
+              "cisco-l2vpn-ntw:te-service-mapping": {
+                "srv6": {
+                  "locator": "MAIN"
+                }
+              }
+            }
+          ]
+        },
+        "cisco-l2vpn-ntw:evi-id": 4129,
+        "cisco-l2vpn-ntw:auto-evi-source": [null],
+        "cisco-l2vpn-ntw:auto-evi-target": [null]
+      }
+    ],
+    "cisco-l2vpn-ntw:vpn-service-plan": [
+      {
+        "vpn-id": "vpn-129",
+        "plan": {
+          "component": [
+            {
+              "type": "tailf-ncs:self",
+              "name": "self",
+              "state": [
+                {
+                  "name": "tailf-ncs:init",
+                  "status": "reached",
+                  "when": "2026-07-16T21:48:22.321741+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  }
+                },
+                {
+                  "name": "tailf-ncs:ready",
+                  "status": "reached",
+                  "when": "2026-08-26T16:59:40.521154+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  }
+                }
+              ],
+              "back-track": false
+            },
+            {
+              "type": "ietf-l2vpn-ntw-nano-services:vpn-node",
+              "name": "node-2",
+              "state": [
+                {
+                  "name": "tailf-ncs:init",
+                  "status": "reached",
+                  "when": "2026-07-16T21:48:22.321741+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  }
+                },
+                {
+                  "name": "ietf-l2vpn-ntw-nano-services:config-apply",
+                  "status": "reached",
+                  "when": "2026-07-16T21:48:22.321741+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  },
+                  "modified": {
+                    "devices": ["node-2"],
+                    "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-2'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L2vpn-fp-internal-local-site:flat-L2vpn-internal-local-site-service[name='L2NM-vpn-129-internal'][pe='node-2']"]
+                  },
+                  "directly-modified": {
+                    "services": ["/cisco-flat-L2vpn-fp-internal-local-site:flat-L2vpn-internal-local-site-service[name='L2NM-vpn-129-internal'][pe='node-2']"]
+                  }
+                },
+                {
+                  "name": "tailf-ncs:ready",
+                  "status": "reached",
+                  "when": "2026-08-26T16:59:40.522399+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  }
+                }
+              ],
+              "back-track": false
+            },
+            {
+              "type": "ietf-l2vpn-ntw-nano-services:vpn-node",
+              "name": "node-4",
+              "state": [
+                {
+                  "name": "tailf-ncs:init",
+                  "status": "reached",
+                  "when": "2026-07-16T21:48:22.321741+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  }
+                },
+                {
+                  "name": "ietf-l2vpn-ntw-nano-services:config-apply",
+                  "status": "reached",
+                  "when": "2026-07-16T21:48:22.321741+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  },
+                  "modified": {
+                    "devices": ["node-4"],
+                    "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-4'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L2vpn-fp-internal-remote-site:flat-L2vpn-internal-remote-site-service[name='L2NM-vpn-129-internal'][pe='node-4']"]
+                  },
+                  "directly-modified": {
+                    "services": ["/cisco-flat-L2vpn-fp-internal-remote-site:flat-L2vpn-internal-remote-site-service[name='L2NM-vpn-129-internal'][pe='node-4']"]
+                  }
+                },
+                {
+                  "name": "tailf-ncs:ready",
+                  "status": "reached",
+                  "when": "2026-08-26T16:59:40.523571+00:00",
+                  "pre-conditions": {
+                  },
+                  "post-actions": {
+                  }
+                }
+              ],
+              "back-track": false
+            }
+          ],
+          "evi-allocation-data": {
+            "evi-id": "4129",
+            "evi-source": "1",
+            "evi-target": "2"
+          }
+        }
+      }
+    ]
+  }
+}

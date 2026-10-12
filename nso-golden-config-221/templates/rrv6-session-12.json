@@ -1,0 +1,14 @@
+{
+  "name": "rrv6-session-12",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "router bgp 65000\n neighbor 2011::12\n  remote-as 65000\n  update-source Loopback0\n  address-family vpnv4 unicast\n   encapsulation-type srv6\n   route-policy RRv6 out\n  !\n !\n!\n"
+    }
+  ]
+}

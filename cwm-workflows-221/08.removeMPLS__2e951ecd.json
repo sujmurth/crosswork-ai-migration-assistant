@@ -1,0 +1,182 @@
+{
+  "workflowId": "2e951ecd-1769-4e9a-b728-d7bccfddfd61",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-07T17:55:10.985312Z",
+  "name": "08.removeMPLS",
+  "version": "1.0",
+  "description": "Phase 8 (final): enumerate infrastructure devices and remove the MPLS/LDP transport via the remove-mpls-template golden config. Run ONLY after SRv6 cutover (LocPref 150) is verified with 0 traffic loss. Both transports coexist until this step, so rollback (LocPref->50) stays available right up to here.",
+  "definition": {
+    "id": "removeMPLS-1.0",
+    "name": "08.removeMPLS",
+    "start": "iterateDevice",
+    "states": [
+      {
+        "name": "getDevices",
+        "type": "operation",
+        "actions": [
+          {
+            "version": "1.0",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "genericGetDevices"
+            }
+          }
+        ],
+        "actionMode": "sequential",
+        "transition": "iterateDevice"
+      },
+      {
+        "mode": "sequential",
+        "name": "iterateDevice",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "removeMPLSDeliverPayload",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "transition": "postSrv6Fwd",
+        "iterationParam": "node",
+        "inputCollection": "${ .devices }",
+        "stateDataFilter": {
+          "output": "${ . | del (.devices) }"
+        },
+        "outputCollection": "${ .payloadResult }"
+      },
+      {
+        "end": true,
+        "name": "endOfWF",
+        "type": "operation"
+      },
+      {
+        "name": "postSrv6Fwd",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "postSrv6FwdAct",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPost",
+              "arguments": {
+                "input": {
+                  "data": "{\"input\": {\"args\": \"show cef vrf vpn-101 30.1.4.0/24\"}}",
+                  "path": "restconf/operations/devices/device=node-2/live-status/tailf-ned-cisco-ios-xr-stats:exec/any"
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then (.data.\"tailf-ned-cisco-ios-xr-stats:output\" // {}).result else \"\" end }",
+              "toStateData": "${ .srv6FwdResult }"
+            }
+          }
+        ],
+        "transition": "postPing"
+      },
+      {
+        "name": "postPing",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "postPingAct",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPost",
+              "arguments": {
+                "input": {
+                  "data": "{\"input\": {\"args\": \"ping vrf vpn-101 30.1.4.2 source 30.1.2.2 repeat 2000\"}}",
+                  "path": "restconf/operations/devices/device=cpe-22/live-status/tailf-ned-cisco-ios-stats:exec/any"
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then (.data.\"tailf-ned-cisco-ios-stats:output\" // {}).result else \"\" end }",
+              "toStateData": "${ .pingResult }"
+            }
+          }
+        ],
+        "transition": "evaluateChecks"
+      },
+      {
+        "name": "evaluateChecks",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ ((.srv6FwdResult // \"\") | contains(\"fcbb:0:4:\")) and ((.pingResult // \"\") | contains(\"Success rate is 100 percent\")) }",
+            "transition": "endOfWF"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "verificationFailed"
+        }
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "verificationFailed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "forceFail",
+            "functionRef": {
+              "refName": "NSO.RestconfGet",
+              "arguments": {
+                "input": {
+                  "path": "restconf/data/tailf-ncs:devices/device=__postcheck_failed__/config"
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfPost",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "NSO.RestconfGet",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Get"
+      }
+    ],
+    "description": "Phase 8 (final): enumerate infrastructure devices and remove the MPLS/LDP transport via the remove-mpls-template golden config. Run ONLY after SRv6 cutover (LocPref 150) is verified with 0 traffic loss. Both transports coexist until this step, so rollback (LocPref->50) stays available right up to here.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "MPLS",
+    "step-8"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "2357b9926c1beb8a7c5e49b372803f6c6867189449a8a2313b26eb4b239a1f7d"
+}

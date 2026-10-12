@@ -1,0 +1,24 @@
+{
+  "_comment": "L3VPN (vpn-101) and L2VPN EVPN-VPWS (vpn-129) pre/post checks shown in the portal Migration Status panel and seeded into the workflow check registry. Mirrors checks-srv6-migration.json phases 5/5b + baseline. 'stage' = pre|post; read-only show commands run via NSO live-status.",
+  "l3vpn": {
+    "service": "vpn-101",
+    "type": "L3VPN",
+    "checks": [
+      { "name": "l3vpn-routes",       "stage": "pre",  "node": "node-2", "command": "show bgp vpnv4 unicast vrf vpn-101",              "expect": "30.1.1.0/24",   "match": "contains", "nedExec": "cisco-ios-xr-stats" },
+      { "name": "srv6-locator-ready", "stage": "pre",  "node": "node-2", "command": "show segment-routing srv6 locator",              "expect": "MAIN",          "match": "contains", "nedExec": "cisco-ios-xr-stats" },
+      { "name": "udt4-sid-vpn101",    "stage": "post", "node": "node-2", "command": "show segment-routing srv6 sid",                  "expect": "uDT4.*vpn-101", "match": "regex",    "nedExec": "cisco-ios-xr-stats" },
+      { "name": "srv6-now-best",      "stage": "post", "node": "node-2", "command": "show bgp vpnv4 unicast vrf vpn-101 30.1.4.0/24", "expect": ">i.*2010::4",   "match": "regex",    "nedExec": "cisco-ios-xr-stats" }
+    ]
+  },
+  "l2vpn": {
+    "service": "vpn-129",
+    "type": "L2VPN EVPN-VPWS",
+    "checks": [
+      { "name": "l2vpn-baseline-up", "stage": "pre",  "node": "node-2", "command": "show l2vpn xconnect group vpn-129", "expect": "UP",      "match": "contains", "nedExec": "cisco-ios-xr-stats" },
+      { "name": "bgp-evpn-rrv6-up",  "stage": "pre",  "node": "node-2", "command": "show bgp l2vpn evpn summary",       "expect": "2011::11", "match": "contains", "nedExec": "cisco-ios-xr-stats" },
+      { "name": "evpn-vpws-up",      "stage": "post", "node": "node-2", "command": "show l2vpn xconnect group vpn-129", "expect": "UP",      "match": "contains", "nedExec": "cisco-ios-xr-stats" },
+      { "name": "evpn-evi-srv6",     "stage": "post", "node": "node-2", "command": "show evpn evi vpn-id 4129 detail",  "expect": "SRv6",    "match": "contains", "nedExec": "cisco-ios-xr-stats" },
+      { "name": "udx2-sid-vpn129",   "stage": "post", "node": "node-2", "command": "show segment-routing srv6 sid",     "expect": "uDX2",    "match": "contains", "nedExec": "cisco-ios-xr-stats" }
+    ]
+  }
+}

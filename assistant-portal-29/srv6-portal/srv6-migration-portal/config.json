@@ -1,0 +1,9 @@
+{
+  "cncHost": "198.18.134.221",
+  "cncPort": 30603,
+  "workflowName": "SRv6-Migration-MOP",
+  "workflowVersion": "1.0",
+  "nsoLocal": true,
+  "bindHost": "0.0.0.0",
+  "port": 8077
+}

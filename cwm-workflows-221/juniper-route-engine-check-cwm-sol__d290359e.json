@@ -1,0 +1,249 @@
+{
+  "workflowId": "d290359e-85a1-4574-858b-f01b820d4394",
+  "createdAt": "2026-02-18T01:36:29.619459Z",
+  "updatedAt": "2026-06-29T21:45:16.66306Z",
+  "name": "juniper-route-engine-check-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks the route engine of the device (Juniper devices). The status for route engine should be \"OK\". If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "juniper-route-engine-check-cwm-sol",
+    "name": "juniper-route-engine-check-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "Default",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Route engine check failed.",
+              "condition": ".\"route-engine-information\".\"route-engine\"[].\"status\" == \"OK\""
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for route engine check for Juniper devices"
+            }
+          ]
+        },
+        "transition": "check-route-engine"
+      },
+      {
+        "name": "check-route-engine",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-route-engine-information/get-route-engine-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if (.rakutilExecutorData.status==\"failed\" and .rakutilExecutorData.stash != null) then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route engine check passed."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Route engine check passed.\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Route engine check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Route engine check failed\" end), stash: .rakutilExecutorData.stash.output}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Route engine check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks the route engine of the device (Juniper devices). The status for route engine should be \"OK\". If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "routeEngineCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "8a7df3f59056fa8e843a70193d3394b783614c33b1e02a1d8b09dc58a1dc0e42"
+}

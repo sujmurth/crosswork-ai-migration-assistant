@@ -1,0 +1,14 @@
+{
+  "name": "rrv6-policy",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "route-policy RRv6\n set local-preference 150\n pass\nend-policy\n!\n"
+    }
+  ]
+}

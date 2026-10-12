@@ -1,0 +1,49 @@
+{
+  "tailf-ncs:device": [
+    {
+      "name": "cpe-21"
+    },
+    {
+      "name": "cpe-22"
+    },
+    {
+      "name": "cpe-23"
+    },
+    {
+      "name": "cpe-24"
+    },
+    {
+      "name": "cpe-29"
+    },
+    {
+      "name": "node-1"
+    },
+    {
+      "name": "node-16"
+    },
+    {
+      "name": "node-17"
+    },
+    {
+      "name": "node-2"
+    },
+    {
+      "name": "node-3"
+    },
+    {
+      "name": "node-4"
+    },
+    {
+      "name": "node-5"
+    },
+    {
+      "name": "node-6"
+    },
+    {
+      "name": "node-7"
+    },
+    {
+      "name": "node-8"
+    }
+  ]
+}

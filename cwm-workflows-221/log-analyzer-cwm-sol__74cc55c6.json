@@ -1,0 +1,365 @@
+{
+  "workflowId": "74cc55c6-ef18-46b1-b6a0-1f82f8f06f0e",
+  "createdAt": "2026-02-18T01:36:29.264948Z",
+  "updatedAt": "2026-06-29T21:45:15.469014Z",
+  "name": "log-analyzer-cwm-sol",
+  "version": "2.1.0",
+  "description": "Analyse the syslogs during Pre and Post upgrade phase. The output should be a \"success\" if there are no logs with severity from 0 to 2, \"failure\" if the log level is 0/1 and \"warning\" if the log level is 2.",
+  "definition": {
+    "id": "log-analyzer-cwm-sol",
+    "name": "log-analyzer-cwm-sol",
+    "start": "check-device-family",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "inject-template-and-expressions-xr"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or  (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "inject-template-and-expressions-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "data": {
+          "template": "Value node (\\S+)\nValue timeStamp ([a-zA-Z]{3}\\s+\\d+\\s\\d{2}:\\d{2}:\\d{2}.\\d{3}\\s[a-zA-Z]{3})\nValue process (\\S+)\nValue category (\\S+)\nValue group (\\S+)\nValue severity (\\S+)\nValue code (\\S+)\nValue message (.*)\n\nStart\n  ^${node}:${timeStamp}:\\s${process}:\\s%${category}-${group}-${severity}-${code}\\s:\\s${message} -> Record",
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Severity 2 messages logged. System under critical conditions. Please contact Cisco TAC.",
+              "condition": "[.[] | select(.severity == \"0\" or .severity == \"1\" or .severity == \"2\")] | length > 0"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for log analyzer check"
+            }
+          ]
+        },
+        "transition": "execute-command"
+      },
+      {
+        "data": {
+          "template": "Value timeStamp ([a-zA-Z]{3}\\s+\\d+\\s\\d{2}:\\d{2}:\\d{2}.\\d{3})\nValue group (\\S+)\nValue severity (\\S+)\nValue code (\\S+)\nValue message (.*)\n\nStart\n  ^.${timeStamp}:\\s%${group}-${severity}-${code}:\\s${message} -> Record",
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Severity 2 messages logged. System under critical conditions. Please contact Cisco TAC.",
+              "condition": "[.[] | select(.severity == \"0\" or .severity == \"1\" or .severity == \"2\")] | length > 0"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for log analyzer check"
+            }
+          ]
+        },
+        "transition": "execute-command"
+      },
+      {
+        "name": "execute-command",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": (if ((.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\")) then (\"show logging\") else (if .logAnalyzer.lastLines != null then (\"show logging last \" + (.logAnalyzer.lastLines | tostring)) else \"show logging last 30\" end) end), \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\"})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-error"
+          },
+          {
+            "name": "output has warnings",
+            "condition": "${ if .rakutilExecutorData.status==\"warning\" then true else false end}",
+            "transition": "return-warning"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Log analyzer check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", message: \"Log analyzer check passed\"} }"
+        }
+      },
+      {
+        "name": "return-warning",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Log analyzer check completed with severity 0 or 1 or 2 messages found in logs."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"warning\", message: \"Severity 0 or 1 or 2 messages logged. System under critical conditions. Please contact Cisco TAC.\", stash: .rakutilExecutorData.nsoResponse}}"
+        }
+      },
+      {
+        "name": "return-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Log analyzer check completed with errors."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"error\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Error\" end)}}"
+        }
+      },
+      {
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Log analyzer check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Exited abnormally.\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Analyse the syslogs during Pre and Post upgrade phase. The output should be a \"success\" if there are no logs with severity from 0 to 2, \"failure\" if the log level is 0/1 and \"warning\" if the log level is 2.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "Log Analyzer Configuration",
+        "properties": {
+          "logAnalyzer": {
+            "type": "object",
+            "title": "Log Analysis Settings",
+            "required": [
+              "lastLines"
+            ],
+            "properties": {
+              "lastLines": {
+                "type": "number",
+                "title": "Number of Log Lines",
+                "default": 30,
+                "maximum": 1000,
+                "minimum": 1,
+                "description": "Number of most recent log lines to analyze for severity issues (default: 30)"
+              }
+            },
+            "description": "Configuration for log analysis parameters"
+          }
+        },
+        "failOnValidationErrors": true
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.log-analyzer-cwm-sol",
+  "path": "",
+  "hashSum": "67f29138412f74c4a9a5682d52ca7de3cf1588392d2a980f7c3cfe71a37e8de5"
+}

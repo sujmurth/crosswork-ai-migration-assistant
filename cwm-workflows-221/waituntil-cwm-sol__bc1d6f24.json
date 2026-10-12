@@ -1,0 +1,557 @@
+{
+  "workflowId": "bc1d6f24-2734-4463-8688-e2970a20b8ef",
+  "createdAt": "2026-02-18T01:37:33.22833Z",
+  "updatedAt": "2026-02-18T01:37:33.22833Z",
+  "name": "waituntil-cwm-sol",
+  "version": "2.1.0",
+  "description": "This workflow is designed to execute a device command repeatedly in a loop until a specified evaluation condition is met or the operation times out. It is particularly useful in scenarios where a device needs to reach a desired state or respond with specific data, requiring multiple attempts to achieve success.",
+  "definition": {
+    "id": "waituntil-cwm-sol",
+    "name": "waituntil-cwm-sol",
+    "start": "check-execution-model",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Forbidden",
+        "description": "UNAUTHORIZED REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-execution-model",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "sequential-execution",
+            "condition": "${ if (.\"app-data\".\"executionMode\" == 2 and .deviceSelection == null) then true else false end}",
+            "transition": {
+              "nextState": "no-device-selecton-error"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "initialize-loop"
+        }
+      },
+      {
+        "data": {
+          "index": 0,
+          "stash": [],
+          "timeup": 0,
+          "history": []
+        },
+        "name": "initialize-loop",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Initializing the loop."
+            }
+          ]
+        },
+        "transition": "initialize-timeout"
+      },
+      {
+        "name": "initialize-timeout",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "init-timeout",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {timeout: (if .operation.timeout then .operation.timeout else 60 end), timeup: 0} | tostring }",
+                  "path": "/v1/cwms-utils/check-timeout"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .waitUntilData }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Initializing the timeout."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT60M"
+        },
+        "transition": "increment-counter"
+      },
+      {
+        "name": "increment-counter",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Incrementing the counter."
+            }
+          ]
+        },
+        "transition": "execute-operation",
+        "stateDataFilter": {
+          "output": "${ .index = .index + 1 }"
+        }
+      },
+      {
+        "name": "execute-operation",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "exec-single-command-workflow",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "run-and-review-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ (. | del(.stash)) as $result | { stash:(.stash + .stash), currentOutput:$result, processedResource: .processedResource, history:(.history + [$result + {timestamp: (now | strftime(\"%Y-%m-%d %H:%M:%S\"))}]) } }",
+              "toStateData": "${ . }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Executing the operation: result: ${ [.expressions[].message] | if length > 1 then join(\", \") else .[0] end }"
+            }
+          ]
+        },
+        "timeouts": {
+          "actionExecTimeout": "PT60M"
+        },
+        "transition": "check-operation-status"
+      },
+      {
+        "name": "check-operation-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .currentOutput.conditionMatch == \"true\" }",
+            "transition": "break-and-exit"
+          },
+          {
+            "condition": "${ .currentOutput.status == \"failed\" and .currentOutput.conditionMatch != \"true\"}",
+            "transition": "set-failed-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-timeout"
+        }
+      },
+      {
+        "name": "check-timeout",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "checking-timeout",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {timeout: .loop_check.Timeout, timeup: .loop_check.Timeup} | tostring }",
+                  "path": "/v1/cwms-utils/check-timeout"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .loop_check }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Timeout checked. Calling loop timeout check."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "transition": "check-loop-timeout"
+      },
+      {
+        "name": "check-loop-timeout",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .loop_check.Continue == true }",
+            "transition": "increment-counter"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "timeout-expired"
+        }
+      },
+      {
+        "name": "break-and-exit",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status: .currentOutput.status, message: (.history[-1].message), stash: .stash, processedResource: .processedResource } }"
+        }
+      },
+      {
+        "name": "set-failed-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status: \"failed\", message: (\"Loop interrupted due to command error: \" + .currentOutput.message), stash: .stash, processedResource: .processedResource } }"
+        }
+      },
+      {
+        "name": "timeout-expired",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Timeout expired. Ending the workflow."
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message: \"Loop interrupted due to timeout\", stash: .stash, processedResource: .processedResource } }"
+        }
+      },
+      {
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message:\"Resource not found\" } }"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message:\"Exited abnormally\" } }"
+        }
+      },
+      {
+        "name": "rest-api-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message:\"Automation API error\" } }"
+        }
+      },
+      {
+        "name": "forbidden-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message: \"Unauthorized request error\" } }"
+        }
+      },
+      {
+        "name": "server-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message:\"Internal server error\" } }"
+        }
+      },
+      {
+        "name": "no-device-selecton-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Execution model is fleet-wide, but deviceSelection is not present.\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT60M"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "This workflow is designed to execute a device command repeatedly in a loop until a specified evaluation condition is met or the operation times out. It is particularly useful in scenarios where a device needs to reach a desired state or respond with specific data, requiring multiple attempts to achieve success.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation": {
+            "type": "object",
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "const": "execCli"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "command",
+                    "template"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "enum": [
+                        "get",
+                        "post"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "path"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "const": "post"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "payload": {
+                      "type": "string",
+                      "title": "Payload",
+                      "description": "The payload to be sent with the post request when the method is 'post'. This should be a stringified valid JSON object. Can be omitted for POST requests that don't require a payload."
+                    }
+                  }
+                }
+              }
+            ],
+            "required": [
+              "method",
+              "timeout",
+              "expressions",
+              "delay"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The URL path to use when the 'get' or 'post' method is specified. This field is required for 'get' or 'post'."
+              },
+              "delay": {
+                "type": "number",
+                "minimum": 0,
+                "description": "The delay time, in seconds, before each command execution."
+              },
+              "filter": {
+                "type": "string",
+                "description": "A filter (json query) to apply to the processed command output. This is used to narrow down the results based on specific criteria."
+              },
+              "method": {
+                "enum": [
+                  "get",
+                  "post",
+                  "execCli"
+                ],
+                "type": "string",
+                "description": "The method to be used for the command execution. Supported methods are 'get', 'post', or 'execCli'."
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The command to execute when the 'execCli' method is used. This field is required for 'execCli'."
+              },
+              "payload": {
+                "type": "string",
+                "title": "Payload",
+                "examples": [
+                  "{}",
+                  "{\"input\": {\"interface-name\": \"GigabitEthernet0/0/1\"}}"
+                ],
+                "description": "The payload to be sent with the post request when the method is 'post'. This should be a stringified valid JSON object. Optional - can be omitted if the POST request doesn't require a payload."
+              },
+              "timeout": {
+                "type": "number",
+                "minimum": 1,
+                "description": "The timeout duration, in seconds, for the entire wait loop operation. This field is required."
+              },
+              "template": {
+                "type": "string",
+                "description": "TextFSM template to be applied to the command output. This is used to parse the command output into structured data."
+              },
+              "expressions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "condition",
+                    "message",
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                        "warning",
+                        "success"
+                      ],
+                      "type": "string",
+                      "description": "The status of the expression evaluation."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "The message to display when the condition is met."
+                    },
+                    "condition": {
+                      "type": "string",
+                      "description": "The json query condition to evaluate against the command output."
+                    }
+                  },
+                  "description": "An expression to evaluate against the command output."
+                },
+                "minItems": 1,
+                "description": "A list of json query expressions to evaluate against the command output. These expressions determine when the wait condition is met."
+              }
+            },
+            "description": "Details of the operation to be executed, including method, command, path, and execution parameters."
+          },
+          "deviceSelection": {
+            "type": "object",
+            "properties": {
+              "jsonPath": {
+                "type": "string",
+                "description": "JSONPath expression to select a specific device from input data."
+              }
+            },
+            "description": "Optional device selection configuration for dynamic device targeting."
+          }
+        },
+        "description": "Input schema defining the structure and requirements for the workflow. This includes operation details, timeout configuration, and application-specific data."
+      }
+    },
+    "failOnValidationErrors": true
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.waituntil-cwm-sol",
+  "path": "",
+  "hashSum": "3fc11d1f8d141081458568adfb10f7e926cbb63648450b42e51540b5d1a4a5df"
+}

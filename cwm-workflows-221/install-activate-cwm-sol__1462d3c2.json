@@ -1,0 +1,966 @@
+{
+  "workflowId": "1462d3c2-bbea-4f65-830e-8230a3dd149f",
+  "createdAt": "2026-02-18T01:36:29.121738Z",
+  "updatedAt": "2026-06-29T21:45:14.789227Z",
+  "name": "install-activate-cwm-sol",
+  "version": "2.1.0",
+  "description": "Activate images to a device. The input and output has been updated to follow the input and output schema. The output schema is given in metadata. Failure: If the device is a Cisco device then the EMS activity executor is called, otherwise NSO activity executor is called. If the EMS/NSO adapter return failure status then the workflow would return failure.",
+  "definition": {
+    "id": "install-activate-cwm-sol",
+    "name": "install-activate-cwm-sol",
+    "start": "check-vendor",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-vendor",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "install-EMS",
+            "condition": "${(.\"app-data\".device.vendor | ascii_downcase == \"cisco systems\")}",
+            "transition": {
+              "nextState": "check-EMS-flag"
+            }
+          },
+          {
+            "name": "install-NSO",
+            "condition": "${(.\"app-data\".device.vendor | ascii_downcase == \"juniper networks\")}",
+            "transition": {
+              "nextState": "form-activate-action-nso"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "form-activate-action-nso"
+        }
+      },
+      {
+        "name": "check-EMS-flag",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".data.useEMSResource == false) }",
+            "transition": "form-activate-action-nso-check-productseries"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-productseries-ems"
+        }
+      },
+      {
+        "name": "form-activate-action-nso-check-productseries",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "form-activate-action-nso"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") }",
+            "transition": "form-activate-action-cisco-xe-nso"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "name": "check-productseries-ems",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "form-activate-action-cisco-xr"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") }",
+            "transition": "form-activate-action-cisco-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "name": "form-activate-action-cisco-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "execute-activate-ems",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"activate\" | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .deviceIp=.\"app-data\".device.ip | .emsResourceId=\"EMS\" | .activity.input.location=(if (.activate.location and .activate.location != \"\") then .activate.location else \"harddisk:\" end) | .activity.input.fpd=(if .activate.fpd == true then \"true\" else \"false\" end) | .activity.input.isISSUUpgrade=(if .activate.isISSUUpgrade == true then \"true\" else \"false\" end) }"
+        }
+      },
+      {
+        "name": "form-activate-action-cisco-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "execute-activate-ems",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"activate\" | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .deviceIp=.\"app-data\".device.ip | .emsResourceId=\"EMS\" | .activity.input.location=(if (.distribute.location and .distribute.location != \"\") then .distribute.location else (if ((.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\")) then \"flash\" else \"bootflash\" end) end) | .activity.input.fpd=(if .activate.fpd == true then \"true\" else \"false\" end) | .activity.input.isISSUUpgrade=(if .activate.isISSUUpgrade == true then \"true\" else \"false\" end) }"
+        }
+      },
+      {
+        "name": "form-activate-action-nso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "execute-activate-nso",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"activate\" | .device=.\"app-data\".device.name | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .resourceId=.\"app-data\".\"resource\" | .activity.input.repository=(if .activate.configuredRepo then .activate.configuredRepo else (if .activate.location then .activate.location else (if .\"app-data\".image.repository then .\"app-data\".image.repository else (if (.\"app-data\".device.vendor | ascii_downcase == \"cisco systems\") then \"harddisk:\" else \"/var/tmp\" end) end) end) end) }"
+        }
+      },
+      {
+        "name": "form-activate-action-cisco-xe-nso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "execute-activate-nso",
+        "stateDataFilter": {
+          "output": "${ .activity.type=\"activate\" | .device=.\"app-data\".device.name | .activity.input.\"image-files\"=.\"app-data\".data.softwareImages | .resourceId=.\"app-data\".\"resource\" | .activity.input.repository=(if .activate.configuredRepo then .activate.configuredRepo else (if (.activate.location and .activate.location != \"\") then .activate.location else (if ((.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\")) then \"flash\" else \"bootflash\" end) end) end) }"
+        }
+      },
+      {
+        "name": "execute-activate-ems",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "execute-activate",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "emsactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .activityOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling emsactivityexecutor to do activate operation"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT180M"
+        },
+        "transition": "check-activate-status"
+      },
+      {
+        "name": "execute-activate-nso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "execute-activate",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "actionexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .activityOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling actionexecutor to do activate operation"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT90M"
+        },
+        "transition": "check-activate-status"
+      },
+      {
+        "name": "check-activate-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${(.activityOutput.jobDetails and (.activityOutput.jobDetails.jobResult | ascii_downcase == \"success\")) or (.activityOutput.status and (.activityOutput.status | ascii_downcase == \"success\"))}",
+            "transition": "initialize-counter-fetch-ssh-host-keys"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-failed-check-productSeries"
+        }
+      },
+      {
+        "data": {
+          "counterSsh": 0
+        },
+        "name": "initialize-counter-fetch-ssh-host-keys",
+        "type": "inject",
+        "transition": "wait-for-60sec-fetch-ssh-host-keys"
+      },
+      {
+        "name": "wait-for-60sec-fetch-ssh-host-keys",
+        "type": "sleep",
+        "duration": "PT60S",
+        "transition": "form-fetch-ssh-host-keys-inputs"
+      },
+      {
+        "name": "form-fetch-ssh-host-keys-inputs",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "fetch-ssh-host-keys",
+        "stateDataFilter": {
+          "output": "${ if .device == null then (if .\"app-data\".device.name then (.device.deviceName = .\"app-data\".device.name) end) else (. | del(.device) | (.device.deviceName = .\"app-data\".device.name)) end }"
+        }
+      },
+      {
+        "name": "fetch-ssh-host-keys",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if .activityOutput.status == \"success\" and (.activityOutput.output) then .activityOutput.output end }",
+              "fromStateData": "${{\"activity\": {\"device\":.device, \"resourceId\": .\"app-data\".resource, \"method\":\"fetchSsh\"} }}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validateHostKey"
+      },
+      {
+        "name": "validateHostKey",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${(.activityOutput.data.\"tailf-ncs:output\".result != \"failed\") and (.activityOutput.data.\"tailf-ncs:output\".fingerprint[0].value | type == \"string\") and (.activityOutput.data.\"tailf-ncs:output\".fingerprint[0].value != \"\")}",
+            "transition": "check-productseries-sync-from"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-counter-fetch-ssh-host-keys"
+        }
+      },
+      {
+        "name": "check-counter-fetch-ssh-host-keys",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .counterSsh < 3 }",
+            "transition": "increment-counter-fetch-ssh-host-keys"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-successful-ssh-failed"
+        }
+      },
+      {
+        "name": "increment-counter-fetch-ssh-host-keys",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "wait-for-30sec-fetch-ssh-host-keys",
+        "stateDataFilter": {
+          "output": "${ .counterSsh = .counterSsh + 1 }"
+        }
+      },
+      {
+        "name": "wait-for-30sec-fetch-ssh-host-keys",
+        "type": "sleep",
+        "duration": "PT30S",
+        "transition": "form-fetch-ssh-host-keys-inputs"
+      },
+      {
+        "name": "check-productseries-sync-from",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\")or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "initialize-counter"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-success-xe"
+        }
+      },
+      {
+        "data": {
+          "counter": 0
+        },
+        "name": "initialize-counter",
+        "type": "inject",
+        "transition": "wait-for-60sec-sync-from"
+      },
+      {
+        "name": "wait-for-60sec-sync-from",
+        "type": "sleep",
+        "duration": "PT60S",
+        "transition": "device-sync-from-xr"
+      },
+      {
+        "name": "device-sync-from-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "device-sync-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.deviceSyncFrom}",
+              "fromStateData": "${.}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validateDeviceSync"
+      },
+      {
+        "name": "validateDeviceSync",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.deviceSyncFrom.status == \"success\"}",
+            "transition": "activate-success-xr"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-counter"
+        }
+      },
+      {
+        "name": "check-counter",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .counter < 3 }",
+            "transition": "increment-counter"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-successful-ssh-successful-sync-from-failed"
+        }
+      },
+      {
+        "name": "increment-counter",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "wait-for-60sec-sync-from",
+        "stateDataFilter": {
+          "output": "${ .counter = .counter + 1 }"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-success-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\")) is successful"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": (\"Activation of \" + (.\"app-data\".data.softwareImages | join(\",\")) + \" is successful. SSH key has been fetched successfully.\")}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-success-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\")) is successful"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": (\"Activation of \" + (.\"app-data\".data.softwareImages | join(\",\")) + \" is successful. SSH key has been fetched successfully. Device has been synced successfully.\")}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-successful-ssh-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\")) is successful, but fetching host key failed."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if (.activityOutput.errors != null and .activityOutput.errors != []) then .activityOutput.errors else \"Activation of \" + (.\"app-data\".data.softwareImages | join(\",\")) + \" is successful, but fetching ssh host key failed.\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-successful-ssh-successful-sync-from-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\")) is successful, but device sync failed."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if (.activityOutput.errors != null and .activityOutput.errors != []) then .activityOutput.errors else \"Activation of \" + (.\"app-data\".data.softwareImages | join(\",\")) + \" is successful, ssh host key has been fetched successfully, but device sync failed.\" end)}}"
+        }
+      },
+      {
+        "name": "activate-failed-check-productSeries",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-lintd",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") }",
+            "transition": "form-lintd-log-command"
+          },
+          {
+            "name": "check-lintd",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\")}",
+            "transition": "form-exr-log-command"
+          },
+          {
+            "name": "check-xe-ASR",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "form-xe-ASR-Cat-log-command"
+          },
+          {
+            "name": "check-xe-Cat",
+            "condition": "${(.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") }",
+            "transition": "form-xe-Cat-log-command"
+          },
+          {
+            "name": "check-Juniper",
+            "condition": "${(.\"app-data\".device.productSeries == \"Juniper Networks Inc MX Series\") }",
+            "transition": "form-Juniper-log-check-expressions"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-failed"
+        }
+      },
+      {
+        "name": "form-lintd-log-command",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "command-executor-error-log",
+        "stateDataFilter": {
+          "output": "${ .errorCommand = \"show install log last 3\" }"
+        }
+      },
+      {
+        "name": "form-exr-log-command",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "command-executor-error-log",
+        "stateDataFilter": {
+          "output": "${ .errorCommand = \"show install log detail | utility tail count 50\" }"
+        }
+      },
+      {
+        "name": "form-xe-ASR-Cat-log-command",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "command-executor-error-log",
+        "stateDataFilter": {
+          "output": "${ .errorCommand = \"show install log\" }"
+        }
+      },
+      {
+        "name": "form-xe-Cat-log-command",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "command-executor-error-log",
+        "stateDataFilter": {
+          "output": "${ .errorCommand = \"show bootlog switch active R0\" }"
+        }
+      },
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Deep error logs received.",
+              "condition": ".\"file-content\" != \"\""
+            }
+          ]
+        },
+        "name": "form-Juniper-log-check-expressions",
+        "type": "inject",
+        "transition": "rakutil-executor-error-log-Juniper"
+      },
+      {
+        "name": "rakutil-executor-error-log-Juniper",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-log/get-log\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\": ({\"filename\": \"install\"}), \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "activate-failed-get-device-error-log-Juniper"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-failed"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-failed-get-device-error-log-Juniper",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\"))} failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Activate failed\" end) end), stash: (.rakutilExecutorData.stash.output.\"file-content\" | split(\"output\") as $jun_log | $jun_log[-5] + \" \" + $jun_log[-4] + \" \" + $jun_log[-3] + \" \" + $jun_log[-2] | split(\"\n\") as $split_val | $split_val | map(select((contains(\">\") or (contains(\"<\"))) | not)))}}"
+        }
+      },
+      {
+        "name": "command-executor-error-log",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": "${ .activity.execCommand = .errorCommand | .activity.resourceId = .\"app-data\".resource | .activity.device = .\"app-data\".device.name | .activity.method = \"execCli\" }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling nsoactivityexecutor to run the required command"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-cmd-output"
+      },
+      {
+        "name": "validate-cmd-output",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .activityOutput.status==\"success\" then true else false end}",
+            "transition": "activate-failed-get-device-error-log"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "activate-failed"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-failed-get-device-error-log",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\"))} failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Activate failed\" end) end), stash: (if (.\"app-data\".device.\"softwareType\" == \"IOS XE\") then [.activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result] else [.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result] end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "activate-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Activation of ${(.\"app-data\".data.softwareImages | join(\",\"))} failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Activate failed\" end) end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Error while executing activate activity on resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .activityOutput.jobDetails.message != null then .activityOutput.jobDetails.message else (if .activityOutput.message != null then .activityOutput.message else \"Error while executing activity on resource.\" end) end)}}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT240M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Activate images to a device. The input and output has been updated to follow the input and output schema. The output schema is given in metadata. Failure: If the device is a Cisco device then the EMS activity executor is called, otherwise NSO activity executor is called. If the EMS/NSO adapter return failure status then the workflow would return failure.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "Software Image Activation Configuration",
+        "properties": {
+          "activate": {
+            "type": "object",
+            "title": "Activation Settings",
+            "properties": {
+              "fpd": {
+                "type": "boolean",
+                "title": "FPD Upgrade",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "Enable Field Programmable Device (FPD) upgrade during activation"
+              },
+              "location": {
+                "type": "string",
+                "title": "Storage Location",
+                "pattern": "^[a-zA-Z0-9_\\-/:.]+$",
+                "examples": [
+                  "harddisk:",
+                  "bootflash:",
+                  "flash:",
+                  "/var/tmp"
+                ],
+                "maxLength": 100,
+                "minLength": 1,
+                "description": "Storage location for the software images (e.g., harddisk:, bootflash:, flash:)"
+              },
+              "isISSUUpgrade": {
+                "type": "boolean",
+                "title": "ISSU Upgrade Mode",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "Enable In-Service Software Upgrade (ISSU) mode for zero-downtime activation"
+              },
+              "configuredRepo": {
+                "type": "string",
+                "title": "Configured Repository",
+                "pattern": "^[a-zA-Z0-9_\\-/:.]+$",
+                "examples": [
+                  "harddisk:/images",
+                  "bootflash:/software",
+                  "/var/tmp/images"
+                ],
+                "maxLength": 200,
+                "minLength": 1,
+                "description": "Pre-configured repository path for software images"
+              }
+            },
+            "description": "Settings for the software image activation process",
+            "additionalProperties": false
+          }
+        },
+        "description": "Configuration for activating software images on network devices",
+        "additionalProperties": true
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.install-activate-cwm-sol",
+  "path": "",
+  "hashSum": "3480470fcd5d6f4df94461b5ffa0696beb715cdfb0225516aa32d6ab9fdb4822"
+}

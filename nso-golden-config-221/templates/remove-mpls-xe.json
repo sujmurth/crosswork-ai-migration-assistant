@@ -1,0 +1,14 @@
+{
+  "name": "remove-mpls-xe",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1.0",
+      "type": "native",
+      "mode": "merge",
+      "config": "no mpls ldp router-id Loopback0 force\ninterface GigabitEthernet4\n no mpls ip\n!\ninterface GigabitEthernet7\n no mpls ip\n!\ninterface GigabitEthernet8\n no mpls ip\n!\n"
+    }
+  ]
+}

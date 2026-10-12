@@ -1,0 +1,444 @@
+{
+  "workflowId": "17fb4986-49d2-49f6-8480-67de5c4c10dd",
+  "createdAt": "2026-02-18T01:36:29.078533Z",
+  "updatedAt": "2026-06-29T21:45:14.640413Z",
+  "name": "evaluate-expressions-cwm-sol",
+  "version": "2.1.0",
+  "description": "This workflow validates parameters using provided expressions, evaluates results, and handles various errors like invalid input, HTTP errors, providing clear output messages.",
+  "definition": {
+    "id": "evaluate-expressions-cwm-sol",
+    "name": "evaluate-expressions-cwm-sol",
+    "start": "validate-input",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_401",
+        "name": "Authorization_Failed",
+        "description": "Authorization Failed"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "Entity_Not_Found",
+        "description": "ENTITY NOT FOUND"
+      },
+      {
+        "code": "joinError",
+        "name": "Validation_Failed",
+        "description": "Validation Failed"
+      },
+      {
+        "code": "ActivityTimeoutError",
+        "name": "Timeout_Error_Activity",
+        "description": "Validation Failed"
+      }
+    ],
+    "states": [
+      {
+        "id": "validate-input",
+        "name": "validate-input",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "validate expressions",
+            "condition": "${ (.expressions | length == 0) or (.expressions[].status | length == 0 ) or  (.expressions[].condition | length == 0) or (.expressions[].status | contains(null)) or (.expressions[].condition | contains(null)) } ",
+            "transition": "invalid-input"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "evaluate-expressions"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-input",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ { \"status\": \"failed\", \"message\": \"Invalid input.\" } }"
+        }
+      },
+      {
+        "name": "evaluate-expressions",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "evaluateExpressions-action",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ { expressions: .expressions, input: ( . | tostring ) } }",
+                  "path": "/v1/cwms-utils/evaluate"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then .data else null end }",
+              "toStateData": "${ .utilExecutorData }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Validating the expressions with the list of expressions"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "evaluate-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT10M"
+        },
+        "transition": "check-result",
+        "stateDataFilter": {
+          "output": "${ .+ { errors: $ERRORS, utilExecutorData: .utilExecutorData } }"
+        }
+      },
+      {
+        "name": "check-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "result not exists",
+            "condition": "${ .utilExecutorData[].result | contains(null) }",
+            "transition": "set-failed-evaluate-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-errors-warnings"
+        }
+      },
+      {
+        "name": "check-errors-warnings",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if result has error",
+            "condition": "${ if any(.utilExecutorData[]; .status == \"error\" and .result == true) then true else false end }",
+            "transition": "set-failed-evaluate-status"
+          },
+          {
+            "name": "if result has failed",
+            "condition": "${ if any(.utilExecutorData[]; .status == \"success\" and .result == false) then true else false end }",
+            "transition": "set-failed-evaluate-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-success-evaluate-status"
+        }
+      },
+      {
+        "name": "set-failed-evaluate-status",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "util executor checks have failed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ([.utilExecutorData[] | select(.result == false) | .message] | first + \"false\") } }"
+        }
+      },
+      {
+        "name": "set-success-evaluate-status",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "util executor checks have passed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", message: ([.utilExecutorData[] | select(.result == true) | .message] | first + \"true\")  } }"
+        }
+      },
+      {
+        "name": "404-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Entity not found, please check"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Entity not found, please check. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))} }"
+        }
+      },
+      {
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Resource not found"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Resource not found. \") } }"
+        }
+      },
+      {
+        "name": "evaluate-api-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Error while evaluating expressions"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Error while evaluating expressions. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))} }"
+        }
+      },
+      {
+        "name": "unauthorized-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Unauthorized request"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Unauthorized request. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))} }"
+        }
+      },
+      {
+        "name": "401-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Authorization failed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Authorization failed. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))} }"
+        }
+      },
+      {
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Please check the input to the request is not in correct format"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Please check the input to the request is not in correct format. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))} }"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Exited abnormally"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Exited abnormally. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)) } }"
+        }
+      },
+      {
+        "name": "Timeout_Error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Timeout error"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Timeout Error. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)) } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "CWMSUtils.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "This workflow validates parameters using provided expressions, evaluates results, and handles various errors like invalid input, HTTP errors, providing clear output messages.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "required": [
+          "expressions"
+        ],
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "resource",
+              "device"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "imageName": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          },
+          "expressions": {
+            "type": "array",
+            "description": "An array of jq expressions used to evaluate or filter data. Each expression should be a valid jq query string."
+          }
+        }
+      }
+    },
+    "failOnValidationErrors": true
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "0a60ade55010bd3b70d3f59596948e50ce2db6af3cb41fd23ea357219127286e"
+}

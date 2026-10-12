@@ -1,0 +1,14 @@
+{
+  "name": "remove-mpls",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1.0",
+      "type": "native",
+      "mode": "merge",
+      "config": "no mpls ldp"
+    }
+  ]
+}

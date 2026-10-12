@@ -1,0 +1,20 @@
+{
+  "name": "srv6-l3vpn-template",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\nroute-policy SRV6_STANDBY_50\n  set local-preference 50\n  pass\nend-policy\n!\nrouter bgp 65000\n address-family vpnv4 unicast\n  segment-routing srv6\n   locator MAIN\n  exit\n exit\n neighbor {{ peer }}\n  remote-as 65000\n  update-source Loopback0\n  address-family vpnv4 unicast\n   route-policy SRV6_STANDBY_50 in\n  exit\n exit\n vrf vpn-101\n  address-family ipv4 unicast\n   segment-routing srv6\n    locator MAIN\n    alloc mode per-vrf\n   exit\n  exit\n exit\nexit\n",
+      "variable": [
+        {
+          "name": "peer",
+          "value": "2010::4"
+        }
+      ]
+    }
+  ]
+}

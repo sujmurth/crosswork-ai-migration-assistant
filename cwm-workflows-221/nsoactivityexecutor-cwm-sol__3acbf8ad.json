@@ -1,0 +1,1059 @@
+{
+  "workflowId": "3acbf8ad-3515-48ca-a4c2-7b814a18e1f7",
+  "createdAt": "2026-02-18T01:36:28.883318Z",
+  "updatedAt": "2026-06-29T21:45:12.729683Z",
+  "name": "nsoactivityexecutor-cwm-sol",
+  "version": "2.1.0",
+  "description": "Execute NSO adapter activity. This workflow executes the call to NSO and returns the response. Failure: When the NSO adapter returns a status other than success.",
+  "definition": {
+    "id": "nsoactivityexecutor-cwm-sol",
+    "name": "nsoactivityexecutor-cwm-sol",
+    "start": "checkMethod",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "TIMEOUT",
+        "name": "Http_Timeout",
+        "description": "NSO RESTCONF CALL TIMED OUT"
+      },
+      {
+        "code": "NSO_OPERATION_FAILED",
+        "name": "Operation_Error",
+        "description": "OPERATION ERROR"
+      },
+      {
+        "code": "NSO_INVALID_VALUE",
+        "name": "Invalid_Value",
+        "description": "INVALID VALUE"
+      },
+      {
+        "code": "NSO_MALFARMED_MESSAGE",
+        "name": "Malfarmed_Message",
+        "description": "MALFARMED MESSAGE"
+      },
+      {
+        "code": "NSO_UNKNOWN_ELEMENT",
+        "name": "Unknown_Element",
+        "description": "UNKNOWN ELEMENT"
+      },
+      {
+        "code": "NSO_BAD_ELEMENT",
+        "name": "Bad_Element",
+        "description": "BAD ELEMENT"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "NSO_ACCESS_DENIED",
+        "name": "Access_Denied",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "Entity_Not_Found",
+        "description": "ENTITY NOT FOUND"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Device_Http_Error",
+        "description": "DEVICE HTTP ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_502",
+        "name": "Device_Not_In_Sync",
+        "description": "DEVICE HTTP ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_NSO_Resource",
+        "description": "INVALID NSO RESOURCE ERROR"
+      },
+      {
+        "code": "NSO_DATA_MISSING",
+        "name": "Data_Missing",
+        "description": "DATA MISSING"
+      },
+      {
+        "code": "NSO_RESOURCE_DENIED",
+        "name": "Resource_Denied",
+        "description": "NSO RESOURCE DENIED"
+      },
+      {
+        "code": "ActivityTimeoutError",
+        "name": "Timeout_Error_Activity",
+        "description": "Validation Failed"
+      }
+    ],
+    "states": [
+      {
+        "name": "checkMethod",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.activity.method == \"execCli\"}",
+            "transition": "getDeviceType"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "executeActivityNotExecCli"
+        }
+      },
+      {
+        "name": "getDeviceType",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "getDeviceInfo",
+            "functionRef": {
+              "refName": "nso-restconf-get",
+              "arguments": {
+                "input": {
+                  "path": "restconf/data/tailf-ncs:devices/device=${ .activity.device }/device-type"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.deviceInfo}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Executing the call to NSO"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Operation_Error",
+            "transition": "nso-operation-error"
+          },
+          {
+            "errorRef": "Invalid_Value",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Malfarmed_Message",
+            "transition": "nso-malfarmed-message"
+          },
+          {
+            "errorRef": "Unknown_Element",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Bad_Element",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Data_Missing",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Http_Timeout",
+            "transition": "nso-timeout"
+          },
+          {
+            "errorRef": "Access_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Resource_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Device_Http_Error",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Device_Not_In_Sync",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Invalid_NSO_Resource",
+            "transition": "resource-not-found"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "checkDeviceType"
+      },
+      {
+        "name": "checkDeviceType",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "executeActivityExecCli",
+            "condition": "${if .deviceInfo.data.\"tailf-ncs:device-type\".cli != null then true else false end}",
+            "transition": "executeActivityExecCli"
+          },
+          {
+            "name": "setMethodExecCliNetconf",
+            "condition": "${if .deviceInfo.data.\"tailf-ncs:device-type\".netconf != null then true else false end}",
+            "transition": "setMethodExecCliNetconf"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalidDeviceTypeError"
+        }
+      },
+      {
+        "name": "setMethodExecCliNetconf",
+        "type": "operation",
+        "transition": "executeActivityExecCli",
+        "stateDataFilter": {
+          "input": "${ . | .activity.method = \"execCliNetconf\" }"
+        }
+      },
+      {
+        "end": true,
+        "name": "executeActivityExecCli",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "executeCli",
+            "condition": "${.activity.method == \"execCli\"}",
+            "functionRef": {
+              "refName": "nso-restconf-post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "args": "${ .activity.execCommand }"
+                  },
+                  "path": "restconf/operations/devices/device=${ .activity.device }/live-status/exec/any"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then { \"status\": \"success\", \"output\": (.data)} else { \"status\": \"error\", \"output\": \"nil\"} end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeCliNetconf",
+            "condition": "${.activity.method == \"execCliNetconf\"}",
+            "functionRef": {
+              "refName": "nso-restconf-post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "command": "${ .activity.execCommand }"
+                  },
+                  "path": "restconf/operations/devices/device=${ .activity.device }/rpc/rpc-request-shell-execute/request-shell-execute"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then { \"status\": \"success\", \"output\": (.data)} else { \"status\": \"error\", \"output\": \"nil\"} end }",
+              "toStateData": "${.activityOutput}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Executing the call to NSO"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Operation_Error",
+            "transition": "nso-operation-error"
+          },
+          {
+            "errorRef": "Invalid_Value",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Malfarmed_Message",
+            "transition": "nso-malfarmed-message"
+          },
+          {
+            "errorRef": "Unknown_Element",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Bad_Element",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Data_Missing",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Http_Timeout",
+            "transition": "nso-timeout"
+          },
+          {
+            "errorRef": "Access_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Resource_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Device_Http_Error",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Device_Not_In_Sync",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Invalid_NSO_Resource",
+            "transition": "resource-not-found"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT60M"
+        },
+        "stateDataFilter": {
+          "output": "${ { errors: $ERRORS, activityOutput : .activityOutput } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "executeActivityNotExecCli",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "getVersionXE",
+            "condition": "${.activity.method == \"getVersionXE\"}",
+            "functionRef": {
+              "refName": "nso-restconf-get",
+              "arguments": {
+                "input": {
+                  "path": "restconf/data/tailf-ncs:devices/device=${ .activity.device }/live-status/tailf-ned-cisco-ios-stats:version/version"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then { \"status\": \"success\", \"output\": (.data)} else { \"status\": \"error\", \"output\": \"nil\"} end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executePost",
+            "condition": "${.activity.method == \"post\"}",
+            "functionRef": {
+              "refName": "nso-restconf-post",
+              "arguments": {
+                "input": {
+                  "data": "${ .activity.input }",
+                  "path": "${ .activity.path }"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then (.data as $data| {} | .status=\"success\" | .data=$data ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end}",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executePatch",
+            "condition": "${.activity.method == \"patch\"}",
+            "functionRef": {
+              "refName": "nso-restconf-patch",
+              "arguments": {
+                "input": {
+                  "data": "${ .activity.input }",
+                  "path": "${ .activity.path }"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeGet",
+            "condition": "${.activity.method == \"get\"}",
+            "functionRef": {
+              "refName": "nso-restconf-get",
+              "arguments": {
+                "input": {
+                  "path": "${ .activity.path }"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then { \"status\": \"success\", \"output\": (.data)} else { \"status\": \"error\", \"output\": \"nil\"} end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeDelete",
+            "condition": "${.activity.method == \"delete\"}",
+            "functionRef": {
+              "refName": "nso-restconf-delete",
+              "arguments": {
+                "input": {
+                  "path": "${ .activity.path }"
+                },
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 204 and (.data) then { \"status\": \"success\", \"output\": (if .data == \"\" then {\"deleteComplete\": true} else .data end)} else { \"status\": \"error\", \"output\": \"nil\"} end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeGetPlatformInfo",
+            "condition": "${.activity.method == \"getPlatformInfo\"}",
+            "functionRef": {
+              "refName": "nso-adapter-get-platform-info",
+              "arguments": {
+                "input": "${ .activity.input }",
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeCheckSync",
+            "condition": "${.activity.method == \"checkSync\"}",
+            "functionRef": {
+              "refName": "nso-adapter-checksync",
+              "arguments": {
+                "input": "${ .activity.input }",
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeFetchSSH",
+            "condition": "${.activity.method == \"fetchSsh\"}",
+            "functionRef": {
+              "refName": "nso-adapter-fetchSsh",
+              "arguments": {
+                "input": "${ .activity.device }",
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeSyncFrom",
+            "condition": "${.activity.method == \"syncFrom\"}",
+            "functionRef": {
+              "refName": "nso-adapter-syncfrom",
+              "arguments": {
+                "input": "${ .activity.input }",
+                "config": {
+                  "resourceId": "${.activity.resourceId}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${.activityOutput}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Executing the call to NSO"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Operation_Error",
+            "transition": "nso-operation-error"
+          },
+          {
+            "errorRef": "Invalid_Value",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Malfarmed_Message",
+            "transition": "nso-malfarmed-message"
+          },
+          {
+            "errorRef": "Unknown_Element",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Bad_Element",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Data_Missing",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Http_Timeout",
+            "transition": "nso-timeout"
+          },
+          {
+            "errorRef": "Access_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Resource_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Device_Http_Error",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Device_Not_In_Sync",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Invalid_NSO_Resource",
+            "transition": "resource-not-found"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT60M"
+        },
+        "stateDataFilter": {
+          "output": "${ { errors: $ERRORS, activityOutput : .activityOutput } }"
+        }
+      },
+      {
+        "name": "nso-operation-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Operation Error, failed while executing activity on nso resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Operation Error, failed while executing activity on nso resource\", errors: ((\"Operation Error, failed while executing activity on nso resource. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)))}} }"
+        }
+      },
+      {
+        "name": "nso-malfarmed-message",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Receive malfarmed message error from NSO resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Receive malfarmed message error from NSO resource\", errors: (\"Receive malfarmed message error from NSO resource. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "nso-missing-data",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Missing or unknown data error from NSO resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Missing or unknown data error from NSO resource\", errors: (\"Missing or unknown data error from NSO resource. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "nso-timeout",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Operation Error, nso restconf operation timed out"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Operation Error, nso restconf operation timed out\", errors: (\"Operation Error, nso restconf operation timed out. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Failed while executing activity on nso resource"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Failed while executing activity on nso resource\", errors: (\"Failed while executing activity on nso resource. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "resource-not-found",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Invalid CWM resource. Please check if the resource or sub workflow present in system"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Invalid CWM resource. Please check if the resource or sub workflow present in system\", errors: (\"Invalid CWM resource. Please check if the resource or sub workflow present in system. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "unauthorized-access",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Unable to execute command or action on NSO due to missing  permissions/access"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Unable to execute command or action on NSO due to missing  permissions/access\", errors: (\"Unable to execute command or action on NSO due to missing  permissions/access. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "missing-data",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Required data is missing or invalid for running nso command or operation"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Required data is missing or invalid for running nso command or operation\", errors: (\"Required data is missing or invalid for running nso command or operation. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "Timeout_Error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Timeout Error"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Timeout Error\", errors: (\"Timeout Error. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "abnormal-device",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Failed to execute command/action on device. This may be because device is not present or not in sync"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Failed to execute command/action on device. This may be because device is not present or not in sync\", errors: (\"Failed to execute command/action on device. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Please check the input the request to NSO command/operation is not in correct format"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"Please check the input the request to NSO command/operation is not in correct format\", errors: (\"Please check the input the request to NSO command/operation is not in correct format. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "invalidDeviceTypeError",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "The device type is not of type cli or netconf"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ . += {activityOutput: { \"status\": \"error\", \"output\": \"The device type is not of type cli or netconf\", errors: (\"The device type is not of type cli or netconf. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT60M"
+      }
+    },
+    "functions": [
+      {
+        "name": "nso-restconf-post",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "nso-restconf-patch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      },
+      {
+        "name": "nso-restconf-put",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Put"
+      },
+      {
+        "name": "nso-restconf-get",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Get"
+      },
+      {
+        "name": "nso-restconf-delete",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Delete"
+      },
+      {
+        "name": "nso-adapter-syncfrom",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncFrom"
+      },
+      {
+        "name": "nso-adapter-checksync",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CheckSync"
+      },
+      {
+        "name": "nso-adapter-get-platform-info",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowPlatformInfo"
+      },
+      {
+        "name": "nso-adapter-fetchSsh",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.FetchSshHostKeys"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Execute NSO adapter activity. This workflow executes the call to NSO and returns the response. Failure: When the NSO adapter returns a status other than success.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "4f92013fc8e384805237fc9d88b65ed8afe59744a6a7211685da9d86b6f0fdb5"
+}

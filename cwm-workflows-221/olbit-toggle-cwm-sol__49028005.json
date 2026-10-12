@@ -1,0 +1,399 @@
+{
+  "workflowId": "49028005-d2aa-4148-b086-397455eca6aa",
+  "createdAt": "2026-02-18T01:36:29.319106Z",
+  "updatedAt": "2026-06-29T21:45:15.584349Z",
+  "name": "olbit-toggle-cwm-sol",
+  "version": "2.1.0",
+  "description": "Sets ISIS overload bit (OLbit) during pre-upgrade and resets OLbit in post-upgrade phase.",
+  "definition": {
+    "id": "olbit-toggle-cwm-sol",
+    "name": "olbit-toggle-cwm-sol",
+    "start": "check-phase",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-phase",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null and .stash != [\"No such configuration item\"]}",
+            "transition": "reset-isis-ol-bit"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "get-isis-instances"
+        }
+      },
+      {
+        "name": "get-isis-instances",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "get-isis-ol-bit",
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol"
+            },
+            "actionDataFilter": {
+              "results": "${ if (.activityOutput.status == \"success\") then (if (.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result | ascii_downcase | contains(\"no such configuration item\")) then ( [\"No such configuration item\"] ) else ([.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result | split(\"\\r\\n\") | map( select(. | contains(\"router isis\") ) ) [] | (sub( \"router isis \";  \"\"))] | unique | join(\",\")) end) else .activityOutput end }",
+              "toStateData": "${ .instancesData }",
+              "fromStateData": "${({\"activity\": {\"execCommand\": (\"show running-config router isis \" + .olbitToggle.instance + \" | include router \"), \"device\": .\"app-data\".device.name, \"resourceId\": .\"app-data\".\"resource\", \"method\":\"execCli\"}})}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "transition": "check-isis-instance-data"
+      },
+      {
+        "name": "check-isis-instance-data",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if-isis-instance",
+            "condition": "${ if (.instancesData | type == \"string\") then true else false end }",
+            "transition": "set-isis-ol-bit"
+          },
+          {
+            "name": "if-isis-instance",
+            "condition": "${ if (.instancesData == [\"No such configuration item\"]) then true else false end }",
+            "transition": "no-isis-instance-exit"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "set-isis-ol-bit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "set-isis-ol-bit",
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": " ${{\"activity\": {\"path\":\"restconf/data/golden-config:golden-config\", \"resourceId\": .\"app-data\".\"resource\", \"method\":\"patch\", \"input\":{\"golden-config\": {  \"template\": {    \"name\": \"isis-reset\",    \"version\": {      \"id\": 1,      \"type\": \"native\",      \"config\": \"{% if instances |length > 0 %}\\n{% for instance in instances.split(',') %}\\n    router isis {{ instance }}\\n    set-overload-bit\\n    exit\\n{% endfor %}\\n{% endif %}\"    }  },  \"application\": {    \"name\": (\"isis-set-\"+.\"app-data\".device.name),    \"device\": .\"app-data\".device.name,    \"jinja-template\": {      \"template\": \"isis-reset\",      \"version\": 1    },    \"variable\": {      \"name\": \"instances\",      \"value\": .instancesData    }  }}}} }}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling NSO executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "checkPatchStatus",
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      },
+      {
+        "name": "reset-isis-ol-bit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "reset-isis-ol-bit",
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": " ${{\"activity\": {\"path\":(\"restconf/data/golden-config:golden-config/application=isis-set-\" + .\"app-data\".device.name), \"resourceId\": .\"app-data\".\"resource\", \"method\":\"delete\"} }}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling NSO executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "checkDeleteStatus"
+      },
+      {
+        "name": "checkPatchStatus",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "patch-success",
+            "condition": "${ if .activityOutput.status==204 then true else false end}",
+            "transition": "return-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "patch-error"
+        }
+      },
+      {
+        "name": "checkDeleteStatus",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "patch-success",
+            "condition": "${ if .activityOutput.status==204 then true else false end}",
+            "transition": "reset-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "no-reset-error"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Olbit toggle wf completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", message: ((\"isis ol bit has been set by /golden-config/application isis-set-\") + (.\"app-data\".device.name)), stash: [.instancesData]} }"
+        }
+      },
+      {
+        "name": "reset-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Olbit toggle wf completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", message: ((\"isis ol bit has been reset by deleting /golden-config/application isis-set-\") + (.\"app-data\".device.name))} }"
+        }
+      },
+      {
+        "name": "no-reset-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"warning\", message: ((\"No reset performed. /golden-config/application isis-set-\") + (.\"app-data\".device.name) + (\" not present\")), stash: .stash}}"
+        }
+      },
+      {
+        "name": "patch-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"failed\", message: \"The patch failed.\", stash: .instancesData}}"
+        }
+      },
+      {
+        "name": "no-isis-instance-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"warning\", message: \"No isis instance found.\", stash: .instancesData}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "CFS check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .instancesData.errors != null then .instancesData.errors else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Sets ISIS overload bit (OLbit) during pre-upgrade and resets OLbit in post-upgrade phase.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "OLBIT Toggle Configuration",
+        "required": [
+          "olbitToggle"
+        ],
+        "properties": {
+          "olbitToggle": {
+            "type": "object",
+            "title": "ISIS Overload Bit Settings",
+            "required": [
+              "instance"
+            ],
+            "properties": {
+              "instance": {
+                "type": "string",
+                "title": "ISIS Instance Name",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+                "maxLength": 32,
+                "minLength": 1,
+                "description": "The ISIS routing instance name for which to toggle the overload bit (e.g., 'core', 'edge', '1')"
+              }
+            },
+            "description": "Configuration for ISIS overload bit (OLBIT) toggle operation"
+          }
+        },
+        "failOnValidationErrors": true
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.olbit-toggle-cwm-sol",
+  "path": "",
+  "hashSum": "7b94f189460adcb014757abce53bf6f45d88e5d79e728d997ec3133a290453d7"
+}

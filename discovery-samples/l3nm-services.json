@@ -1,0 +1,452 @@
+{
+  "ietf-l3vpn-ntw:vpn-services": {
+    "vpn-service": [
+      {
+        "vpn-id": "vpn-101",
+        "vpn-service-topology": "ietf-vpn-common:any-to-any",
+        "vpn-instance-profiles": {
+          "vpn-instance-profile": [
+            {
+              "profile-id": "default",
+              "cisco-l3vpn-ntw:srv6": {
+                "address-family": [
+                  {
+                    "name": "ietf-vpn-common:ipv4",
+                    "locator-name": "MAIN"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "vpn-nodes": {
+          "vpn-node": [
+            {
+              "vpn-node-id": "node-1",
+              "modified": {
+                "devices": ["node-1"],
+                "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-1'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-1_1-ac1']"]
+              },
+              "directly-modified": {
+                "services": ["/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-1_1-ac1']"]
+              },
+              "plan-location": "/ietf-l3vpn-ntw:l3vpn-ntw/vpn-services/cisco-l3vpn-ntw:vpn-service-plan[vpn-id='vpn-101']/vpn-nodes/vpn-node-plan[vpn-node-id='node-1']",
+              "created": "2026-07-16T23:02:02.761603+00:00",
+              "last-modified": "2026-10-06T19:55:45.354741+00:00",
+              "last-run": "2026-10-06T19:55:55.606878+00:00",
+              "active-vpn-instance-profiles": {
+                "vpn-instance-profile": [
+                  {
+                    "profile-id": "default",
+                    "address-family": [
+                      {
+                        "address-family": "ietf-vpn-common:ipv4"
+                      },
+                      {
+                        "address-family": "ietf-vpn-common:ipv6"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "vpn-network-accesses": {
+                "vpn-network-access": [
+                  {
+                    "id": "1-ac1",
+                    "interface-id": "GigabitEthernet0/0/0/11",
+                    "connection": {
+                      "encapsulation": {
+                        "type": "ietf-vpn-common:dot1q",
+                        "dot1q": {
+                          "cvlan-id": 101
+                        }
+                      }
+                    },
+                    "ip-connection": {
+                      "ipv4": {
+                        "local-address": "30.1.1.1",
+                        "prefix-length": 24
+                      }
+                    },
+                    "routing-protocols": {
+                      "routing-protocol": [
+                        {
+                          "id": "0",
+                          "type": "ietf-vpn-common:bgp-routing",
+                          "bgp": {
+                            "peer-as": 65003,
+                            "address-family": "ipv4",
+                            "neighbor": ["30.1.1.2"],
+                            "redistribute-connected": [
+                              {
+                                "address-family": "ietf-vpn-common:ipv4",
+                                "enable": true
+                              }
+                            ],
+                            "cisco-l3vpn-ntw:mpls-deactivation": false
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "cisco-l3vpn-ntw:custom-template": [
+                {
+                  "name": "ct-mpls-l3vpn"
+                }
+              ]
+            },
+            {
+              "vpn-node-id": "node-2",
+              "modified": {
+                "devices": ["node-2"],
+                "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-2'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-2_2-ac2']"]
+              },
+              "directly-modified": {
+                "services": ["/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-2_2-ac2']"]
+              },
+              "plan-location": "/ietf-l3vpn-ntw:l3vpn-ntw/vpn-services/cisco-l3vpn-ntw:vpn-service-plan[vpn-id='vpn-101']/vpn-nodes/vpn-node-plan[vpn-node-id='node-2']",
+              "created": "2026-07-16T23:02:02.881168+00:00",
+              "last-modified": "2026-10-06T19:55:45.474945+00:00",
+              "last-run": "2026-10-06T19:55:55.605698+00:00",
+              "active-vpn-instance-profiles": {
+                "vpn-instance-profile": [
+                  {
+                    "profile-id": "default",
+                    "address-family": [
+                      {
+                        "address-family": "ietf-vpn-common:ipv4"
+                      },
+                      {
+                        "address-family": "ietf-vpn-common:ipv6"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "vpn-network-accesses": {
+                "vpn-network-access": [
+                  {
+                    "id": "2-ac2",
+                    "interface-id": "GigabitEthernet0/0/0/11",
+                    "connection": {
+                      "encapsulation": {
+                        "type": "ietf-vpn-common:dot1q",
+                        "dot1q": {
+                          "cvlan-id": 101
+                        }
+                      }
+                    },
+                    "ip-connection": {
+                      "ipv4": {
+                        "local-address": "30.1.2.1",
+                        "prefix-length": 24
+                      }
+                    },
+                    "routing-protocols": {
+                      "routing-protocol": [
+                        {
+                          "id": "0",
+                          "type": "ietf-vpn-common:bgp-routing",
+                          "bgp": {
+                            "peer-as": 65003,
+                            "address-family": "ipv4",
+                            "neighbor": ["30.1.2.2"],
+                            "redistribute-connected": [
+                              {
+                                "address-family": "ietf-vpn-common:ipv4",
+                                "enable": true
+                              }
+                            ],
+                            "cisco-l3vpn-ntw:mpls-deactivation": false
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "cisco-l3vpn-ntw:custom-template": [
+                {
+                  "name": "ct-mpls-l3vpn"
+                }
+              ]
+            },
+            {
+              "vpn-node-id": "node-4",
+              "modified": {
+                "devices": ["node-4"],
+                "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-4'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-4_4-ac4']"]
+              },
+              "directly-modified": {
+                "services": ["/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-4_4-ac4']"]
+              },
+              "plan-location": "/ietf-l3vpn-ntw:l3vpn-ntw/vpn-services/cisco-l3vpn-ntw:vpn-service-plan[vpn-id='vpn-101']/vpn-nodes/vpn-node-plan[vpn-node-id='node-4']",
+              "created": "2026-07-16T23:02:02.985198+00:00",
+              "last-modified": "2026-10-06T19:55:45.599061+00:00",
+              "last-run": "2026-10-06T19:55:55.616461+00:00",
+              "active-vpn-instance-profiles": {
+                "vpn-instance-profile": [
+                  {
+                    "profile-id": "default",
+                    "address-family": [
+                      {
+                        "address-family": "ietf-vpn-common:ipv4"
+                      },
+                      {
+                        "address-family": "ietf-vpn-common:ipv6"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "vpn-network-accesses": {
+                "vpn-network-access": [
+                  {
+                    "id": "4-ac4",
+                    "interface-id": "GigabitEthernet0/0/0/11",
+                    "connection": {
+                      "encapsulation": {
+                        "type": "ietf-vpn-common:dot1q",
+                        "dot1q": {
+                          "cvlan-id": 101
+                        }
+                      }
+                    },
+                    "ip-connection": {
+                      "ipv4": {
+                        "local-address": "30.1.4.1",
+                        "prefix-length": 24
+                      }
+                    },
+                    "routing-protocols": {
+                      "routing-protocol": [
+                        {
+                          "id": "0",
+                          "type": "ietf-vpn-common:bgp-routing",
+                          "bgp": {
+                            "peer-as": 65003,
+                            "address-family": "ipv4",
+                            "neighbor": ["30.1.4.2"],
+                            "redistribute-connected": [
+                              {
+                                "address-family": "ietf-vpn-common:ipv4",
+                                "enable": true
+                              }
+                            ],
+                            "cisco-l3vpn-ntw:mpls-deactivation": false
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "cisco-l3vpn-ntw:custom-template": [
+                {
+                  "name": "ct-mpls-l3vpn"
+                }
+              ]
+            }
+          ]
+        },
+        "cisco-l3vpn-ntw:service-assurance": {
+          "monitoring-state": "disable",
+          "preservation": "remove",
+          "profile-name": "Gold_L3VPN_ConfigProfile system",
+          "rule-name": "Rule-L3VPN-NM system"
+        },
+        "cisco-l3vpn-ntw:vpn-target": {
+          "hub-rt-value": "0:101:101"
+        }
+      }
+    ],
+    "cisco-l3vpn-ntw:vpn-service-plan": [
+      {
+        "vpn-id": "vpn-101",
+        "plan": {
+          "component": [
+            {
+              "type": "tailf-ncs:self",
+              "name": "self",
+              "state": [
+                {
+                  "name": "tailf-ncs:init",
+                  "status": "reached",
+                  "when": "2026-07-16T23:02:02.772407+00:00"
+                },
+                {
+                  "name": "tailf-ncs:ready",
+                  "status": "reached",
+                  "when": "2026-10-06T19:55:55.312152+00:00"
+                }
+              ],
+              "back-track": false
+            }
+          ],
+          "rt-allocation-data": {
+            "hub-rt": "0:101:101"
+          }
+        },
+        "vpn-nodes": {
+          "vpn-node-plan": [
+            {
+              "vpn-node-id": "node-1",
+              "plan": {
+                "component": [
+                  {
+                    "type": "tailf-ncs:self",
+                    "name": "self",
+                    "state": [
+                      {
+                        "name": "tailf-ncs:init",
+                        "status": "reached",
+                        "when": "2026-07-16T23:02:02.880627+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        }
+                      },
+                      {
+                        "name": "ietf-l3vpn-ntw-nano-services:config-apply",
+                        "status": "reached",
+                        "when": "2026-07-16T23:02:02.880627+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        },
+                        "modified": {
+                          "devices": ["node-1"],
+                          "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-1'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-1_1-ac1']"]
+                        },
+                        "directly-modified": {
+                          "services": ["/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-1_1-ac1']"]
+                        }
+                      },
+                      {
+                        "name": "tailf-ncs:ready",
+                        "status": "reached",
+                        "when": "2026-10-06T19:55:45.352775+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        }
+                      }
+                    ],
+                    "back-track": false
+                  }
+                ],
+                "rt-allocation-data": {
+                  "hub-rt": "0:101:101"
+                }
+              }
+            },
+            {
+              "vpn-node-id": "node-2",
+              "plan": {
+                "component": [
+                  {
+                    "type": "tailf-ncs:self",
+                    "name": "self",
+                    "state": [
+                      {
+                        "name": "tailf-ncs:init",
+                        "status": "reached",
+                        "when": "2026-07-16T23:02:02.98461+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        }
+                      },
+                      {
+                        "name": "ietf-l3vpn-ntw-nano-services:config-apply",
+                        "status": "reached",
+                        "when": "2026-07-16T23:02:02.98461+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        },
+                        "modified": {
+                          "devices": ["node-2"],
+                          "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-2'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-2_2-ac2']"]
+                        },
+                        "directly-modified": {
+                          "services": ["/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-2_2-ac2']"]
+                        }
+                      },
+                      {
+                        "name": "tailf-ncs:ready",
+                        "status": "reached",
+                        "when": "2026-10-06T19:55:45.473025+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        }
+                      }
+                    ],
+                    "back-track": false
+                  }
+                ],
+                "rt-allocation-data": {
+                  "hub-rt": "0:101:101"
+                }
+              }
+            },
+            {
+              "vpn-node-id": "node-4",
+              "plan": {
+                "component": [
+                  {
+                    "type": "tailf-ncs:self",
+                    "name": "self",
+                    "state": [
+                      {
+                        "name": "tailf-ncs:init",
+                        "status": "reached",
+                        "when": "2026-07-16T23:02:03.103114+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        }
+                      },
+                      {
+                        "name": "ietf-l3vpn-ntw-nano-services:config-apply",
+                        "status": "reached",
+                        "when": "2026-07-16T23:02:03.103114+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        },
+                        "modified": {
+                          "devices": ["node-4"],
+                          "services": ["/core-fp-delete-tag-service:core-fp-delete-shutdown-service[device='node-4'][if-type='GigabitEthernet'][if-id='0/0/0/11']", "/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-4_4-ac4']"]
+                        },
+                        "directly-modified": {
+                          "services": ["/cisco-flat-L3vpn-fp-internal:flat-L3vpn[name='L3NM-vpn-101-internal'][endpoint-name='node-4_4-ac4']"]
+                        }
+                      },
+                      {
+                        "name": "tailf-ncs:ready",
+                        "status": "reached",
+                        "when": "2026-10-06T19:55:45.595516+00:00",
+                        "pre-conditions": {
+                        },
+                        "post-actions": {
+                        }
+                      }
+                    ],
+                    "back-track": false
+                  }
+                ],
+                "rt-allocation-data": {
+                  "hub-rt": "0:101:101"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

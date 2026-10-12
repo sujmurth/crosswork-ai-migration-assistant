@@ -1,0 +1,837 @@
+{
+  "workflowId": "94353bd6-360f-4974-87cb-f83c0e0a12f7",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-08T07:44:18.257643Z",
+  "name": "SRv6-Migration-MOP",
+  "version": "1.0",
+  "description": "Master MOP for MPLS -> SRv6 migration. Runs the deck/Confluence phases (enable IPv6 -> ISISv6/SRv6 locators -> RRv6 peers -> RRv6 policy LocPref 50 (dual plane) -> per-VRF L3VPN SRv6 -> EVPN-VPWS L2VPN SRv6 (Phase 5b) -> LocPref 150 cutover -> remove MPLS). Every phase does pre-check -> action -> post-check via the reusable 'validateChecks' subflow, a switch gate that HALTS on any failed check, and an operator approval callback (approve-phaseN event) before advancing. Phase 5b migrates the EVPN-VPWS service (vpn-129) via the l2vpn-migrate-template golden config (vpws-seamless-integration + EVI SRv6 locator). Phase 6 auto-rolls-back (LocPref 50) if the cutover post-check fails. Targets remapped for cw-dcloud-v5 (RRv6=pce-11 2011::11, PEs node-2/node-4, L3VPN vpn-101, L2VPN vpn-129). Full editable check set lives in checks-srv6-migration.json.",
+  "definition": {
+    "id": "SRv6-Migration-MOP-1.0",
+    "name": "SRv6-Migration-MOP",
+    "start": "Phase 0: Baseline Validation (Pre-Check)",
+    "events": [
+      {
+        "kind": "consumed",
+        "name": "webex-approval",
+        "type": "cisco.cwm.webex.approval",
+        "source": "webex-bot"
+      }
+    ],
+    "states": [
+      {
+        "name": "Phase 0: Baseline Validation (Pre-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .preResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "0",
+          "title": "Baseline validation (ISISv4 + LDP + RRv4, L3VPN vpn-101, L2VPN vpn-129)"
+        },
+        "transition": "Phase 0: Baseline Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase0-baseline-pre\", checks: [ { name: \"isis-adj-up\", node: \"node-2\", command: \"show isis adjacency\", expect: \"Up\" }, { name: \"ldp-oper\", node: \"node-2\", command: \"show mpls ldp neighbor\", expect: \"Oper\" }, { name: \"rrv4-up\", node: \"node-2\", command: \"show bgp vpnv4 unicast summary\", expect: \"198.19.2.11\" }, { name: \"l3vpn-routes\", node: \"node-2\", command: \"show bgp vpnv4 unicast vrf vpn-101\", expect: \"30.1.1.0/24\" }, { name: \"l2vpn-up\", node: \"node-2\", command: \"show l2vpn xconnect group vpn-129\", expect: \"UP\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 0: Baseline Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 1: Enable IPv6 Addressing/Routing"
+          },
+          {
+            "condition": "${ .preResult.allPass != true }",
+            "transition": "HALT: Check Failed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 1: Enable IPv6 Addressing/Routing",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "01.enableIPV6",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .enableIPv6Result }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "1",
+          "title": "[Step 1] Enable IPv6 Addressing/Routing"
+        },
+        "transition": "Phase 1: Verify IPv6 (Post-Check)"
+      },
+      {
+        "name": "Phase 1: Verify IPv6 (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 1: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase1-post\", checks: [ { name: \"lo0-ipv6-set\", node: \"node-2\", command: \"show ipv6 interface brief\", expect: \"2010::2\" }, { name: \"ipv6-reach-node4\", node: \"node-2\", command: \"ping 2010::4\", expect: \"!!!!!\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 1: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 1: Approve -> Phase 2"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 1: Approve -> Phase 2",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "webexApprovalGate",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .approveP2Result }"
+            }
+          }
+        ],
+        "metadata": {
+          "gate": "interactive Webex approval before Phase 2 (Enable SRv6)"
+        },
+        "transition": "Phase 2: Enable SRv6 (Pre-Check)",
+        "stateDataFilter": {
+          "input": "${ . + { notifyPhase: \"Phase 1 \\u2014 Enable IPv6 complete. Proceed to Phase 2 (Enable SRv6)?\" } }"
+        }
+      },
+      {
+        "name": "Phase 2: Enable SRv6 (Pre-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .preResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "2",
+          "title": "Enable SRv6 (ISISv6 AF + locators MAIN/TOP/BOTTOM/LATENCY)"
+        },
+        "transition": "Phase 2: Pre-Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase2-pre\", checks: [ { name: \"isisv6-ready\", node: \"node-2\", command: \"show isis interface brief\", expect: \"2/2\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 2: Pre-Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 2: Enable SRv6 Locators & ISISv6"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 2: Enable SRv6 Locators & ISISv6",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "02.enableSRv6",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "title": "[Step 2] Enable SRv6 / Locators"
+        },
+        "transition": "Phase 2: Verify SRv6 (Post-Check)"
+      },
+      {
+        "name": "Phase 2: Verify SRv6 (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 2: Post-Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase2-post\", checks: [ { name: \"locator-main-up\", node: \"node-2\", command: \"show segment-routing srv6 locator\", expect: \"MAIN\" }, { name: \"un-sid-inuse\", node: \"node-2\", command: \"show segment-routing srv6 sid\", expect: \"uN .*InUse\" }, { name: \"remote-locator-rib\", node: \"node-2\", command: \"show route ipv6 fcbb:0:4::/48\", expect: \"fcbb:0:4::/48\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 2: Post-Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 2: Approve -> Phase 3"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 2: Approve -> Phase 3",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "webexApprovalGate",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "gate": "interactive Webex approval before Phase 3 (RRv6 peers)"
+        },
+        "transition": "Phase 3: Enable RRv6 Peers (BGPv6)",
+        "stateDataFilter": {
+          "input": "${ . + { notifyPhase: \"Phase 2 \\u2014 SRv6 locators complete. Proceed to Phase 3 (RRv6 peers)?\" } }"
+        }
+      },
+      {
+        "name": "Phase 3: Enable RRv6 Peers (BGPv6)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "03.enableRRv6Peers",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "3",
+          "title": "[Step 3] Add RRv6 and BGPv6 Sessions"
+        },
+        "transition": "Phase 3: Verify RRv6 (Post-Check)"
+      },
+      {
+        "name": "Phase 3: Verify RRv6 (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 3: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase3-post\", checks: [ { name: \"bgpv6-evpn-up\", node: \"node-2\", command: \"show bgp l2vpn evpn summary\", expect: \"2011::11\" }, { name: \"rrv6-clients-up\", node: \"node-2\", command: \"show bgp l2vpn evpn summary\", expect: \"2011::11\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 3: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 3: Approve -> Phase 4"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 3: Approve -> Phase 4",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "webexApprovalGate",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "gate": "interactive Webex approval before Phase 4 (RRv6 policy LocPref 50 \u2014 dual plane, MPLS preferred)"
+        },
+        "transition": "Phase 4: RRv6 Policy LocPref 50 (Dual Plane)",
+        "stateDataFilter": {
+          "input": "${ . + { notifyPhase: \"Phase 3 \\u2014 RRv6 + BGPv6 peers up. Proceed to Phase 4 (RRv6 policy LocPref 50, dual plane)?\" } }"
+        }
+      },
+      {
+        "name": "Phase 4: RRv6 Policy LocPref 50 (Dual Plane)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "04a.createRRv6Policy-50",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "4",
+          "title": "[Step 4] SRv6 added as standby - MPLS (RRv4 lp100) still preferred = dual-plane"
+        },
+        "transition": "Phase 4: Verify Dual Plane (Post-Check)"
+      },
+      {
+        "name": "Phase 4: Verify Dual Plane (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 4: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase4-post\", checks: [ { name: \"vpnv4-route-present\", node: \"node-2\", command: \"show bgp vpnv4 unicast vrf vpn-101 30.1.4.0/24\", expect: \"Paths:\" }, { name: \"mpls-still-best\", node: \"node-2\", command: \"show bgp vpnv4 unicast vrf vpn-101 30.1.4.0/24\", expect: \"198.19.1.4\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 4: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 4: Approve -> Phase 5"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 4: Approve -> Phase 5",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "webexApprovalGate",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "gate": "interactive Webex approval before Phase 5 (per-VRF SRv6)"
+        },
+        "transition": "Phase 5: Per-VRF SRv6 Migration",
+        "stateDataFilter": {
+          "input": "${ . + { notifyPhase: \"Phase 4 \\u2014 RRv6 policy LocPref 50 applied (SRv6 standby). Proceed to Phase 5 (per-VRF SRv6)?\" } }"
+        }
+      },
+      {
+        "name": "Phase 5: Per-VRF SRv6 Migration",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "05.migrateL3VPN",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "5",
+          "title": "[Step 5] Enable L3VPN with SRv6, allocate uDT4 SRv6-VPN SID (05.migrateL3VPN)"
+        },
+        "transition": "Phase 5: Verify per-VRF SRv6 (Post-Check)"
+      },
+      {
+        "name": "Phase 5: Verify per-VRF SRv6 (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "5",
+          "title": "[5] Verify per-VRF SRv6 (VPNv4 carries uDT4 PSID)"
+        },
+        "transition": "Phase 5: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase5-post\", checks: [ { name: \"l3vpn-udt4-sid\", node: \"node-2\", command: \"show segment-routing srv6 sid\", expect: \"uDT4\" }, { name: \"l3vpn-srv6-forwarding\", node: \"node-2\", command: \"show cef vrf vpn-101 30.1.1.0/24\", expect: \"fcbb:0:4:\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 5: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 5b: Migrate L2VPN (Pre-Check)"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 5b: Migrate L2VPN (Pre-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .preResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "5b",
+          "title": "[5b] Pre-check: vpn-129 xconnect UP (ready for EVPN-VPWS SRv6)"
+        },
+        "transition": "Phase 5b: Pre-Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase5b-pre\", checks: [ { name: \"l2vpn-xconnect-up\", node: \"node-2\", command: \"show l2vpn xconnect group vpn-129\", expect: \"UP\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 5b: Pre-Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 5b: Migrate L2VPN (EVPN-VPWS SRv6)"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 5b: Migrate L2VPN (EVPN-VPWS SRv6)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "05b.migrateL2VPN",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "5b",
+          "title": "[Step 6] Migrate L2VPN EVPN-VPWS over SRv6 - uDX2 (05b.migrateL2VPN)"
+        },
+        "transition": "Phase 5b: Verify L2VPN SRv6 (Post-Check)"
+      },
+      {
+        "name": "Phase 5b: Verify L2VPN SRv6 (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 5b: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase5b-post\", checks: [ { name: \"evpn-vpws-up\", node: \"node-2\", command: \"show l2vpn xconnect group vpn-129\", expect: \"UP\" }, { name: \"evpn-evi-srv6\", node: \"node-2\", command: \"show running-config evpn evi 4129\", expect: \"segment-routing srv6\" }, { name: \"udt2-sid-vpn129\", node: \"node-2\", command: \"show segment-routing srv6 sid\", expect: \"uDT2\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 5b: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 5: Approve -> Cutover"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 5: Approve -> Cutover",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "webexApprovalGate",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "gate": "interactive Webex approval to CUT OVER to SRv6 (Phase 6, LocPref 150)"
+        },
+        "transition": "Phase 6: Cutover to SRv6 (Pre-Check)",
+        "stateDataFilter": {
+          "input": "${ . + { notifyPhase: \"Phase 5/5b \\u2014 L3VPN (vpn-101) + L2VPN (vpn-129) migrated to SRv6, 0 loss. Proceed to CUT OVER (Phase 6, LocPref 150)?\" } }"
+        }
+      },
+      {
+        "name": "Phase 6: Cutover to SRv6 (Pre-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .preResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "6",
+          "title": "Cutover: LocPref 150 (SRv6 becomes best path)"
+        },
+        "transition": "Phase 6: Pre-Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase6-pre\", checks: [ { name: \"srv6-path-installed\", node: \"node-2\", command: \"show bgp vpnv4 unicast vrf vpn-101 30.1.4.0/24\", expect: \"2010::4\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 6: Pre-Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 6: Cutover LocPref 150"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 6: Cutover LocPref 150",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "07.updateRRv6Policy",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "title": "[Step 7] Apply BGP policy to prefer SRv6 for L3VPN - prefer SRv6 underlay (07.updateRRv6Policy)"
+        },
+        "transition": "Phase 6: Verify Cutover (Post-Check)"
+      },
+      {
+        "name": "Phase 6: Verify Cutover (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 6: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase6-post\", checks: [ { name: \"srv6-now-best\", node: \"node-2\", command: \"show bgp vpnv4 unicast vrf vpn-101 30.1.4.0/24\", expect: \">i.*2010::4\" }, { name: \"dataplane-0loss\", node: \"cpe-22\", nedExec: \"tailf-ned-cisco-ios-stats\", command: \"ping vrf vpn-101 30.1.4.2 source 30.1.2.2 repeat 2000\", expect: \"Success rate is 100 percent\" }, { name: \"l2vpn-still-up\", node: \"node-2\", command: \"show l2vpn xconnect group vpn-129\", expect: \"UP\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 6: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 6: Approve -> Remove MPLS"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "Rollback: Revert to LocPref 50"
+        }
+      },
+      {
+        "name": "Phase 6: Approve -> Remove MPLS",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "webexApprovalGate",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "gate": "interactive Webex approval to REMOVE MPLS (Phase 7) \u2014 point of no easy return"
+        },
+        "transition": "Phase 7: Remove MPLS (Pre-Check)",
+        "stateDataFilter": {
+          "input": "${ . + { notifyPhase: \"Phase 6 \\u2014 SRv6 cutover verified, 0 loss. Proceed to REMOVE MPLS (Phase 7)?\" } }"
+        }
+      },
+      {
+        "name": "Phase 7: Remove MPLS (Pre-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .preResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "phase": "7",
+          "title": "Remove MPLS/LDP (final) \u2014 only after all traffic verified on SRv6"
+        },
+        "transition": "Phase 7: Pre-Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase7-pre\", checks: [ { name: \"all-on-srv6\", node: \"node-2\", command: \"show bgp vpnv4 unicast vrf vpn-101 30.1.4.0/24\", expect: \">i.*2010::4\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 7: Pre-Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Phase 7: Remove MPLS/LDP"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Phase 7: Remove MPLS/LDP",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "08.removeMPLS",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "note": "Removes MPLS/LDP transport via the remove-mpls-template golden config (wf-08.removeMPLS -> removeMPLSDeliverPayload).",
+          "title": "[Step 8] Remove MPLS/LDP (08.removeMPLS)"
+        },
+        "transition": "Phase 7: Verify SRv6-only (Post-Check)"
+      },
+      {
+        "name": "Phase 7: Verify SRv6-only (Post-Check)",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "validateChecks"
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .postResult }"
+            }
+          }
+        ],
+        "transition": "Phase 7: Gate",
+        "stateDataFilter": {
+          "input": "${ . + { phaseLabel: \"phase7-post\", checks: [ { name: \"srv6-forwarding\", node: \"node-2\", command: \"show cef vrf vpn-101 30.1.4.0/24\", expect: \"fcbb:0:4:\" }, { name: \"final-0loss\", node: \"cpe-22\", nedExec: \"tailf-ned-cisco-ios-stats\", command: \"ping vrf vpn-101 30.1.4.2 source 30.1.2.2 repeat 2000\", expect: \"Success rate is 100 percent\" } ] } }"
+        }
+      },
+      {
+        "name": "Phase 7: Gate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ true }",
+            "transition": "Migration Complete"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "HALT: Check Failed"
+        }
+      },
+      {
+        "name": "Rollback: Revert to LocPref 50",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "04a.createRRv6Policy-50",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "metadata": {
+          "note": "Cutover post-check failed (traffic loss / SRv6 not best). Revert LocPref 150->50 (MPLS preferred). Both planes remain programmed, so rollback is hitless."
+        },
+        "transition": "HALT: Check Failed"
+      },
+      {
+        "end": true,
+        "name": "HALT: Check Failed",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "note": "A pre/post check failed. Migration paused for investigation. Inspect .preResult.failed / .postResult.failed for the failing checks."
+        },
+        "stateDataFilter": {
+          "input": "${ . + { notifyStatus: \"HALTED \\u2014 check failed\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "Migration Complete",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "note": "All phases passed; MPLS removed; traffic on SRv6."
+        },
+        "stateDataFilter": {
+          "input": "${ . + { notifyStatus: \"COMPLETE \\u2014 migration done\", notifyPhase: \"Migration Complete\" } }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfPost",
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "NSO.RestconfPatch",
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      }
+    ],
+    "description": "Master MOP for MPLS -> SRv6 migration. Runs the deck/Confluence phases (enable IPv6 -> ISISv6/SRv6 locators -> RRv6 peers -> RRv6 policy LocPref 50 (dual plane) -> per-VRF L3VPN SRv6 -> EVPN-VPWS L2VPN SRv6 (Phase 5b) -> LocPref 150 cutover -> remove MPLS). Every phase does pre-check -> action -> post-check via the reusable 'validateChecks' subflow, a switch gate that HALTS on any failed check, and an operator approval callback (approve-phaseN event) before advancing. Phase 5b migrates the EVPN-VPWS service (vpn-129) via the l2vpn-migrate-template golden config (vpws-seamless-integration + EVI SRv6 locator). Phase 6 auto-rolls-back (LocPref 50) if the cutover post-check fails. Targets remapped for cw-dcloud-v5 (RRv6=pce-11 2011::11, PEs node-2/node-4, L3VPN vpn-101, L2VPN vpn-129). Full editable check set lives in checks-srv6-migration.json.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "SRv6-Migration",
+    "MOP",
+    "solution:SRv6-Migration",
+    "pre-check",
+    "post-check",
+    "orchestrator"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "46d47d48628a7116e3804ec60d448fc7eb7fa5889529863de25f90f909a668bf"
+}

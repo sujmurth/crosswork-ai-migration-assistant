@@ -1,0 +1,701 @@
+{
+  "workflowId": "72725660-1ad1-4c5f-be64-a3d3397cdf21",
+  "createdAt": "2026-02-18T01:36:29.440506Z",
+  "updatedAt": "2026-06-29T21:45:16.075921Z",
+  "name": "upgrade-matrix-cwm-sol",
+  "version": "2.1.0",
+  "description": "Validates the image against the device. This MOP checks whether the action is permitted with the provided file or not. \"Failure\" is returned if there is a failure status from NSO i. e. the action is not permitted or there is an error in execution. \"Warning\" status is returned if restrictions are present for that partiular image for the device, otherwise \"success\" is returned.",
+  "definition": {
+    "id": "upgrade-matrix-cwm-sol",
+    "name": "upgrade-matrix-cwm-sol",
+    "start": "verifyInput",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "verifyInput",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ ([.\"app-data\".data.softwareImages[] | select(contains(\".iso\")) or select(contains(\".tgz\")) or select(contains(\".tar\"))] | length == 0) }",
+            "transition": "invalidInput-noIso"
+          },
+          {
+            "condition": "${ ([.\"app-data\".data.softwareImages[] | select(contains(\".iso\")) or select(contains(\".tgz\")) or select(contains(\".tar\"))] | length > 1) }",
+            "transition": "invalidInput-multipleIso"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "prepare"
+        }
+      },
+      {
+        "name": "invalidInput-noIso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Upgrade matrix check failed as incorrect file was passed. File should be iso."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"warning\", message: \"Incorrect file extension. File should be iso.\"}}"
+        }
+      },
+      {
+        "name": "invalidInput-multipleIso",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Upgrade matrix check failed as more than one iso files were passed."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"warning\", message: \"Upgrade matrix check failed as more than one iso files were passed.\"}}"
+        }
+      },
+      {
+        "name": "prepare",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-device-family",
+        "stateDataFilter": {
+          "output": "${ (.image.name=(.\"app-data\".data.softwareImages[]  | select(contains(\".iso\")))) | (if .location then .location=.location else .location=\"/harddisk:\" end) }"
+        }
+      },
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-lintd",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") }",
+            "transition": "inject-template-and-expressions-lintd"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "inject-template-and-expressions-exr"
+        }
+      },
+      {
+        "data": {
+          "command": "${ \"show install upgrade-matrix iso \"+.location+\"/\"+.image.name }",
+          "template": "Value Upgrade ([\\d]+.[\\d]+.[\\d]+->[\\d]+.[\\d]+.[\\d]+)\nValue Support (upgrade .* no additional)\nValue Restriction (upgrade is supported, with the following)\nValue Not (not support )\nValue Same (same XR version)\n\n\nStart\n  ^.* system upgrade: ${Upgrade}\n  ^.*XR system ${Support} restriction.*\n  ^.*XR system ${Restriction} restriction.*\n  ^.* ${Not}.*\n  ^.*ISO contains.*${Same}.*",
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Need to check for restrictions",
+              "condition": "(. == []) or (.[] | ((.Support | length > 0) or (.Restriction | length > 0)))"
+            },
+            {
+              "status": "error",
+              "message": "Upgrade matrix check failed.",
+              "condition": "(. == []) or (.[] | (.Not | length > 0))"
+            }
+          ],
+          "warningTemplate": "Value Ddts (CSC.*?)\nValue Name (.*?)\nValue Version (.*)\nValue Caveats (.*)\n\n\nStart\n  ^${Ddts}\\s+${Name}\\s+${Version} -> Record\n  ^.*-\\s${Caveats} -> Record"
+        },
+        "name": "inject-template-and-expressions-lintd",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for upgrade matrix check"
+            }
+          ]
+        },
+        "transition": "execute-upgrade-matrix-check-command"
+      },
+      {
+        "data": {
+          "command": "${ \"show install upgrade-matrix iso \"+.location+\"/\"+.image.name }",
+          "template": "Value Support (is supported)\nValue Not (not support)\nValue Same (same version)\nValue ExrFrom ([\\d]+.[\\d]+.[\\d]+)\nValue ExrTo ([\\d]+.[\\d]+.[\\d]+)\nValue SMUs (.*?)\nValue Caveats (.*?)\n\n\nStart\n  ^.*${Support}.*\n  ^.* ${Not}.*\n  ^.*${Same}.*\n  ^${ExrFrom}\\s+${ExrTo}\\s+${SMUs}\\s+${Caveats}\\s+",
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Need to check for restrictions",
+              "condition": "(. == []) or (.[] | ((.Support | length > 0) or (.Restriction | length > 0)))"
+            },
+            {
+              "status": "error",
+              "message": "Upgrade matrix check failed.",
+              "condition": "(. == []) or (.[] | (.Not | length > 0))"
+            }
+          ],
+          "warningTemplate": "Value ExrFrom ([\\d]+.[\\d]+.[\\d]+)\nValue ExrTo ([\\d]+.[\\d]+.[\\d]+)\nValue SMUs (.*?)\nValue Caveats (.*?)\n\n\nStart\n  ^${ExrFrom}\\s+${ExrTo}\\s+${SMUs}\\s+-\\s${Caveats}\\s+ -> Record"
+        },
+        "name": "inject-template-and-expressions-exr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for upgrade matrix check"
+            }
+          ]
+        },
+        "transition": "execute-upgrade-matrix-check-command"
+      },
+      {
+        "name": "execute-upgrade-matrix-check-command",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": .command, \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\"})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "Success"
+          },
+          {
+            "name": "warning condition",
+            "condition": "${ if .rakutilExecutorData.status==\"warning\" then true else false end}",
+            "transition": "get-restrictions"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "Check-Error"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "Failed"
+        }
+      },
+      {
+        "name": "get-restrictions",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "check-result",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {template: .template, input: (.rakutilExecutorData.nsoResponse | tostring)} }",
+                  "path": "/v1/cwms-utils/parse-text"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and .data then .data else null end }",
+              "toStateData": "${ .parseResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Parsing command to check for restrictions"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalidResource"
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "check-restrictions"
+      },
+      {
+        "name": "check-restrictions",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (.parseResult[].Restriction | length > 0) or ((.parseResult[].Caveats | length > 0) and .parseResult[].Caveats != \"None\") }",
+            "transition": "Warn"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "Success"
+        }
+      },
+      {
+        "name": "Success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Upgrade matrix check completed successfully. Image is supported."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"success\", message: \"Image upgrade is supported.\"}}"
+        }
+      },
+      {
+        "name": "Check-Error",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (.rakutilExecutorData.nsoResponse == null) }",
+            "transition": "Failed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "Error"
+        }
+      },
+      {
+        "name": "Failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Upgrade matrix check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Upgrade matrix check failed.\" end)}}"
+        }
+      },
+      {
+        "name": "Warn",
+        "type": "operation",
+        "actions": [
+          {
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {template: .warningTemplate, input: (.rakutilExecutorData.nsoResponse | tostring)} }",
+                  "path": "/v1/cwms-utils/parse-text"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status==200 and .data then (.data ) else null end}",
+              "toStateData": "${ .rakutil.restrictions }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Preparing templates to check for warnings"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalidResource"
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-fixes"
+      },
+      {
+        "name": "get-fixes",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-caveats",
+        "stateDataFilter": {
+          "output": "${ if (.rakutil.restrictions|type == \"object\") then (if .rakutil.restrictions.Ddts|length > 0 then .restrictions += [\"The following fix must be installed: \"+(.rakutil.restrictions.Ddts)] end) else ([.rakutil.restrictions[] | select(.Ddts != \"\") | .Ddts] as $ddts | (if $ddts|length > 0 then .restrictions += [\"The following fixes must be installed: \"+($ddts | join(\", \"))] end)) end }"
+        }
+      },
+      {
+        "name": "get-caveats",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "prepare-warnings",
+        "stateDataFilter": {
+          "output": "${ if (.rakutil.restrictions|type == \"object\") then (if .rakutil.restrictions.Caveats|length > 0 then .restrictions += [\"There is a caveat present: \"+(.rakutil.restrictions.Caveats)] end) else ([.rakutil.restrictions[] | select(.Caveats != \"\") | .Caveats] as $caveats | (if $caveats|length > 0 then .restrictions += [\"The following caveats are present: \"+($caveats | join(\", \"))] end)) end }"
+        }
+      },
+      {
+        "name": "prepare-warnings",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Upgrade matrix check completed with warning"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"warning\", message: (if .restrictions != null then (.restrictions | join(\";\")) else (if .message != null then .message else \"The workflow ended with warnings, please check\" end) end ), stash: .rakutilExecutorData.nsoResponse}}"
+        }
+      },
+      {
+        "name": "Error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Upgrade matrix check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Image upgrade is not supported.\" end), stash: .rakutilExecutorData.nsoResponse}}"
+        }
+      },
+      {
+        "name": "invalidResource",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Upgrade matrix check failed becaue proper resource was not used"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"failed\", message: \"Resource not found.\"}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Upgrade matrix check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Abnormal Exit.\" end)}}"
+        }
+      },
+      {
+        "name": "set-success-or-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Abnormal Exit.\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT5S",
+        "multiplier": 1.1,
+        "maxAttempts": 3
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Validates the image against the device. This MOP checks whether the action is permitted with the provided file or not. \"Failure\" is returned if there is a failure status from NSO i. e. the action is not permitted or there is an error in execution. \"Warning\" status is returned if restrictions are present for that partiular image for the device, otherwise \"success\" is returned.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "upgradeMatrixCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource",
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": [
+                  "softwareImages"
+                ],
+                "properties": {
+                  "imageVersion": {
+                    "type": "string"
+                  },
+                  "softwareImages": {
+                    "type": "array"
+                  }
+                }
+              },
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "82b9cac5a289d7873dba459345a0951d33bd3d71e1bee4049b1f27b768726dee"
+}

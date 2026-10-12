@@ -1,0 +1,429 @@
+{
+  "workflowId": "00c570c4-4952-4744-a9dd-68a71ba51102",
+  "createdAt": "2026-06-29T21:45:16.626583Z",
+  "updatedAt": "2026-06-29T21:45:16.626583Z",
+  "name": "mop-1-distribute-Default XR Upgrade",
+  "version": "2.1.0",
+  "description": "Mop wrapper workflow executes the mop activities of stage distribute.",
+  "definition": {
+    "id": "mop-1-distribute-Default XR Upgrade",
+    "name": "mop-1-distribute-Default XR Upgrade",
+    "start": "check disk space-distribute",
+    "events": [
+      {
+        "name": "cwm.sol.system.mopAction",
+        "type": "cwm.sol.system.mopAction",
+        "source": "actionStatusSource",
+        "correlation": [
+          {
+            "contextAttributeName": "jobId",
+            "contextAttributeValue": "${.jobId}"
+          },
+          {
+            "contextAttributeName": "runId",
+            "contextAttributeValue": "${.runId}"
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "name": "check disk space-distribute",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "cisco-disk-space-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 1,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "distribute",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check disk space",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check disk space-distribute",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check disk space-distribute",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check disk space-distribute"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check disk space-distribute"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check disk space-distribute",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check disk space-distribute",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check disk space-distribute",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "distribute image-distribute",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "distribute image-distribute",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "install-distribute-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 1,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "distribute",
+                    "app-data": "${. + {\"actionTimeout\": \"PT240M\"}}"
+                  },
+                  "path": "v1/mop/action/distribute image",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-distribute image-distribute",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-distribute image-distribute",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-distribute image-distribute"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-distribute image-distribute"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-distribute image-distribute",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT240M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-distribute image-distribute",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-distribute image-distribute",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "check upgrade matrix-distribute",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "name": "check upgrade matrix-distribute",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "upgrade-matrix-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 1,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "distribute",
+                    "app-data": "${. + {\"actionTimeout\": \"PT15M\"}}"
+                  },
+                  "path": "v1/mop/action/check upgrade matrix",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-check upgrade matrix-distribute",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-check upgrade matrix-distribute",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-check upgrade matrix-distribute"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-check upgrade matrix-distribute"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-check upgrade matrix-distribute",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT15M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-check upgrade matrix-distribute",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-check upgrade matrix-distribute",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "successExecution",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "end": true,
+        "name": "successExecution",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"success\", \"message\": \"Workflow execution completed successfully.\", \"app-data\": .} }"
+        }
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "mop action has timed out."
+        },
+        "name": "eventTimeout",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "Workflow execution has been failed."
+        },
+        "name": "failedExecution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "terminated",
+          "message": "Workflow execution has been aborted by the user."
+        },
+        "name": "abortExecution",
+        "type": "inject"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT60S",
+        "maxAttempts": 4
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT3H22M30S"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Mop wrapper workflow executes the mop activities of stage distribute.",
+    "specVersion": "0.9"
+  },
+  "wfTags": [
+    "system",
+    "mop:1",
+    "stage:distribute"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "fc344359584044426e1d7890f396ed4316643b34743352cada9b2d8206f07cf0"
+}

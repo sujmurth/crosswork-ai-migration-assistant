@@ -1,0 +1,121 @@
+{
+  "workflowId": "675ab42c-a4f5-4bdb-afb6-95450985651b",
+  "createdAt": "2026-02-18T01:37:33.315479Z",
+  "updatedAt": "2026-02-18T01:37:33.315479Z",
+  "name": "get-nso-svc-endpoints-cwm-sol",
+  "version": "2.1.0",
+  "description": "Workflow to retrieve NSO services data using the restconf/data/tailf-ncs:services API endpoint via NSO activity executor",
+  "definition": {
+    "id": "get-nso-svc-endpoints-cwm-sol",
+    "name": "get-nso-svc-endpoints-cwm-sol",
+    "start": "getNsoSvcEndpoints",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "getNsoSvcEndpoints",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": ".ncsServicesResult",
+              "fromStateData": " ${{\"activity\": {\"path\":\"restconf/data/tailf-ncs:services\", \"resourceId\": .\"app-data\".resource, \"method\":\"get\"} }}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "captureServices"
+      },
+      {
+        "end": true,
+        "name": "captureServices",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Successfully retrieved NCS services data\", \"serviceEndpoints\": .ncsServicesResult.activityOutput.output.\"tailf-ncs:services\".\"service-type\" | map(.name)}}"
+        }
+      },
+      {
+        "name": "return-error",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (\"Failed to retrieve NCS services data. Error: \" + (.ncsServicesResult // \"Unknown error\")), \"error\": .ncsServicesResult}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Abnormal exit while retrieving NCS services data\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "description": "Workflow to retrieve NSO services data using the restconf/data/tailf-ncs:services API endpoint via NSO activity executor",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "GetNsoServiceEndpointsSchema",
+        "properties": {},
+        "description": "No user input required - this workflow retrieves all NSO service endpoints automatically",
+        "additionalProperties": true
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "b210ebc9082138ac2640ada301c4bec77dafc9bf5ee3b5e356165dfbef4f74c6"
+}

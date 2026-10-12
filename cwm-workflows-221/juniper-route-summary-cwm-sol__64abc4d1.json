@@ -1,0 +1,425 @@
+{
+  "workflowId": "64abc4d1-22bc-4850-88e4-facd44cdea86",
+  "createdAt": "2026-02-18T01:36:29.633689Z",
+  "updatedAt": "2026-06-29T21:45:16.684631Z",
+  "name": "juniper-route-summary-cwm-sol",
+  "version": "2.1.0",
+  "description": "Check the route summary state during Pre and Post upgrade phase (Juniper devices). The data obtained in pre upgrade phase is kept in stash and is matched with the execution data in the post upgrade stage. If the validation fails then the status would be returned as \"failed\", in case of a mismatch between the pre and post upgrade data, \"warning\" is returned, else it would be \"success\".",
+  "definition": {
+    "id": "juniper-route-summary-cwm-sol",
+    "name": "juniper-route-summary-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Route summary check failed.",
+              "condition": ".\"route-summary-information\".\"route-table\" | length > 0"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for route summary check"
+            }
+          ]
+        },
+        "transition": "execute-route-summary-check"
+      },
+      {
+        "name": "execute-route-summary-check",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-route-summary-information/get-route-summary-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for route summary check. Route summary pre-upgrade check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Route summary pre-upgrade check is successful.\", stash: .rakutilExecutorData.stash.output.\"route-summary-information\".\"route-table\"}}"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in alarms",
+            "condition": "${ (.rakutilExecutorData.stash.output.\"route-summary-information\".\"route-table\"|sort) != (.stash|sort) }",
+            "transition": "route-summary-post-check-get-removed-routes"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "route-summary-post-check-passed"
+        }
+      },
+      {
+        "name": "route-summary-post-check-passed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for route summary check. Route summary post check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Route summary post check is successful.\", stash: .rakutilExecutorData.stash.output.\"route-summary-information\".\"route-table\"}}"
+        }
+      },
+      {
+        "name": "route-summary-post-check-get-removed-routes",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route summary check completed with warnings, getting removed routes"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "route-summary-post-check-get-added-routes"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += [([.stash[].\"table-name\"] as $f1 | [.rakutilExecutorData.stash.output.\"route-summary-information\".\"route-table\"[].\"table-name\"] as $f2 | ($f1 - $f2) as $f3 | if $f3 != [] then (\"Removed route-tables: \" + ($f3 | join(\", \"))) else \"No route-tables removed.\" end)] }"
+        }
+      },
+      {
+        "name": "route-summary-post-check-get-added-routes",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route summary check completed with warnings, getting removed routes"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "set-warning-status"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += [([.rakutilExecutorData.stash.output.\"route-summary-information\".\"route-table\"[].\"table-name\"] as $f1 | [.stash[].\"table-name\"] as $f2 | ($f1 - $f2) as $f3 | if $f3 != [] then (\"Added route-tables: \" + ($f3 | join(\", \"))) else \"No route-tables added.\" end)] }"
+        }
+      },
+      {
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Route summary check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"warning\", \"message\": (if .warnings then .warnings | join(\", \") else \"There are differences between pre and post upgrade data\" end), stash: .rakutilExecutorData.stash.output.\"route-summary-information\".\"route-table\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Route summary check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Route summary check failed.\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Route summary check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        {
+          "protocols": [
+            {
+              "protocol-name": "INET6",
+              "active-route-count": 1,
+              "protocol-route-count": 1
+            }
+          ],
+          "table-name": "FOO.inet6.0",
+          "destination-count": 1,
+          "total-route-count": 1,
+          "active-route-count": 1,
+          "hidden-route-count": 0,
+          "holddown-route-count": 0
+        }
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Check the route summary state during Pre and Post upgrade phase (Juniper devices). The data obtained in pre upgrade phase is kept in stash and is matched with the execution data in the post upgrade stage. If the validation fails then the status would be returned as \"failed\", in case of a mismatch between the pre and post upgrade data, \"warning\" is returned, else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "routeSummaryCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "1ebe4be5168d11a88f8468ea62869b43aca521e16bf37cc29d3958605d181cc3"
+}

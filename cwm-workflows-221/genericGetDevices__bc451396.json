@@ -1,0 +1,148 @@
+{
+  "workflowId": "bc451396-5784-4cbb-9440-77c87bea2ec5",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-07-24T23:37:39.758106Z",
+  "name": "genericGetDevices",
+  "version": "1.0",
+  "description": "Enumerate Network Infrastructure Devices",
+  "definition": {
+    "id": "getDevices-1.0",
+    "name": "genericGetDevices",
+    "start": "getDevices",
+    "states": [
+      {
+        "end": true,
+        "data": {
+          "devices": [
+            {
+              "name": "node-1"
+            },
+            {
+              "name": "node-2"
+            },
+            {
+              "name": "node-3"
+            },
+            {
+              "name": "node-4"
+            },
+            {
+              "name": "node-5"
+            },
+            {
+              "name": "node-6"
+            },
+            {
+              "name": "node-7"
+            },
+            {
+              "name": "node-8"
+            }
+          ]
+        },
+        "name": "getDevices",
+        "type": "inject",
+        "stateDataFilter": {
+          "input": "${ . }",
+          "output": "${ . }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.Connect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.Connect"
+      },
+      {
+        "name": "NSO.Disconnect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.Disconnect"
+      },
+      {
+        "name": "NSO.CheckSync",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CheckSync"
+      },
+      {
+        "name": "NSO.GetDeviceList",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.GetDeviceList"
+      },
+      {
+        "name": "NSO.ShowConfig",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowConfig"
+      },
+      {
+        "name": "NSO.SyncFrom",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncFrom"
+      },
+      {
+        "name": "NSO.SyncTo",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncTo"
+      },
+      {
+        "name": "NSO.CompareConfig",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CompareConfig"
+      },
+      {
+        "name": "NSO.FetchSshHostKeys",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.FetchSshHostKeys"
+      },
+      {
+        "name": "NSO.SetAdminState",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SetAdminState"
+      },
+      {
+        "name": "NSO.ShowPlatformInfo",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowPlatformInfo"
+      }
+    ],
+    "description": "Enumerate Network Infrastructure Devices",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "devices"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "536cad3b7959e8ce8ed918a32a635660de7efae63a70d9345e3dcc59175ebbc6"
+}

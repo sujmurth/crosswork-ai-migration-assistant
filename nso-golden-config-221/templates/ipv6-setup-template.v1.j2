@@ -1,0 +1,33 @@
+
+{# Phase 1 (deck steps 4a/4b/4c): enable IPv6 on core links + Loopback0, add ISISv6 AF (single-topology) + advertise Loopback0 in ISISv6 #}
+{% for item in device.config.router.isis.tag['1'].interface %}
+  {% if item.name.startswith('Gi') %}
+    interface {{ item.name }}
+    ipv6 enable
+    exit
+  {% elif item.name.startswith('Loopback0') %}
+    {% set device_id = device.name.lstrip('node-') %}
+    interface {{ item.name }}
+    ipv6 address 2010::{{ device_id }}/128
+    exit
+  {% endif %}
+{% endfor %}
+{% for item in device.config.router.isis.tag['1'].interface %}
+  {% if item.name.startswith('Loopback0') %}
+    router isis 1
+    address-family ipv6 unicast
+    single-topology
+    router-id Loopback 0
+    exit
+    router isis 1
+    interface {{ item.name }}
+    address-family ipv6 unicast
+    exit
+  {% elif item.name.startswith('Gi') %}
+    router isis 1
+    interface {{ item.name }}
+    point-to-point
+    address-family ipv6 unicast
+    exit
+  {% endif %}
+{% endfor %}

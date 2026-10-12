@@ -1,0 +1,219 @@
+{
+  "workflowId": "0ce0d789-0829-4f2c-ab57-07737d3bda4b",
+  "createdAt": "2026-06-29T21:45:16.641632Z",
+  "updatedAt": "2026-06-29T21:45:16.641632Z",
+  "name": "mop-1-commit-Default XR Upgrade",
+  "version": "2.1.0",
+  "description": "Mop wrapper workflow executes the mop activities of stage commit.",
+  "definition": {
+    "id": "mop-1-commit-Default XR Upgrade",
+    "name": "mop-1-commit-Default XR Upgrade",
+    "start": "commit operation-commit",
+    "events": [
+      {
+        "name": "cwm.sol.system.mopAction",
+        "type": "cwm.sol.system.mopAction",
+        "source": "actionStatusSource",
+        "correlation": [
+          {
+            "contextAttributeName": "jobId",
+            "contextAttributeValue": "${.jobId}"
+          },
+          {
+            "contextAttributeName": "runId",
+            "contextAttributeValue": "${.runId}"
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "name": "commit operation-commit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "install-commit-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 1,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "commit",
+                    "app-data": "${. + {\"actionTimeout\": \"PT120M\"}}"
+                  },
+                  "path": "v1/mop/action/commit operation",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-commit operation-commit",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-commit operation-commit",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-commit operation-commit"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-commit operation-commit"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-commit operation-commit",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT120M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-commit operation-commit",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-commit operation-commit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "successExecution",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "end": true,
+        "name": "successExecution",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"success\", \"message\": \"Workflow execution completed successfully.\", \"app-data\": .} }"
+        }
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "mop action has timed out."
+        },
+        "name": "eventTimeout",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "Workflow execution has been failed."
+        },
+        "name": "failedExecution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "terminated",
+          "message": "Workflow execution has been aborted by the user."
+        },
+        "name": "abortExecution",
+        "type": "inject"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT60S",
+        "maxAttempts": 4
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT1H30M"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Mop wrapper workflow executes the mop activities of stage commit.",
+    "specVersion": "0.9"
+  },
+  "wfTags": [
+    "system",
+    "mop:1",
+    "stage:commit"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "57660d2ac497a02b89e1343811e8444ba801ef02aaae7a2c54e3016193e24eda"
+}

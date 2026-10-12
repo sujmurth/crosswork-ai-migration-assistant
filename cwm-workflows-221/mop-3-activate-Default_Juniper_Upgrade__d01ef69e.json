@@ -1,0 +1,219 @@
+{
+  "workflowId": "d01ef69e-98f2-4225-a144-f57fad4427d9",
+  "createdAt": "2026-06-29T21:45:17.051752Z",
+  "updatedAt": "2026-06-29T21:45:17.051752Z",
+  "name": "mop-3-activate-Default Juniper Upgrade",
+  "version": "2.1.0",
+  "description": "Mop wrapper workflow executes the mop activities of stage activate.",
+  "definition": {
+    "id": "mop-3-activate-Default Juniper Upgrade",
+    "name": "mop-3-activate-Default Juniper Upgrade",
+    "start": "activate image-activate",
+    "events": [
+      {
+        "name": "cwm.sol.system.mopAction",
+        "type": "cwm.sol.system.mopAction",
+        "source": "actionStatusSource",
+        "correlation": [
+          {
+            "contextAttributeName": "jobId",
+            "contextAttributeValue": "${.jobId}"
+          },
+          {
+            "contextAttributeName": "runId",
+            "contextAttributeValue": "${.runId}"
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "name": "activate image-activate",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "install-activate-cwm-sol-2.1.0",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "jobId": "${$CONST.CWM.JOB_ID}",
+                    "mopId": 3,
+                    "runId": "${$CONST.CWM.RUN_ID}",
+                    "stage": "activate",
+                    "app-data": "${. + {\"actionTimeout\": \"PT240M\"}}"
+                  },
+                  "path": "v1/mop/action/activate image",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "cwm-solutions-automation",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${.data}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "check-status-activate image-activate",
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      },
+      {
+        "name": "check-status-activate image-activate",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "process-output-activate image-activate"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "check-event-activate image-activate"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "check-event-activate image-activate",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "PT240M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopAction",
+            "transition": "check-status-activate image-activate",
+            "eventDataFilter": {
+              "data": "${ {jobId : .jobId, runId : .runId, status : .status, message : .message, \"app-data\": .\"app-data\"} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "process-output-activate image-activate",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "transition": "successExecution",
+        "stateDataFilter": {
+          "input": "${. | del(.status) | del(.message) | del(.jobId) | del(.runId)}",
+          "output": "${if (.\"app-data\" and (.\"app-data\" | length) > 0) then .\"app-data\" else (. | del(.\"app-data\")) end}"
+        }
+      },
+      {
+        "end": true,
+        "name": "successExecution",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"success\", \"message\": \"Workflow execution completed successfully.\", \"app-data\": .} }"
+        }
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "mop action has timed out."
+        },
+        "name": "eventTimeout",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "Workflow execution has been failed."
+        },
+        "name": "failedExecution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "terminated",
+          "message": "Workflow execution has been aborted by the user."
+        },
+        "name": "abortExecution",
+        "type": "inject"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT60S",
+        "maxAttempts": 4
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT3H"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Mop wrapper workflow executes the mop activities of stage activate.",
+    "specVersion": "0.9"
+  },
+  "wfTags": [
+    "system",
+    "mop:3",
+    "stage:activate"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "43b4027e0a040f6daf12b29c8c376bf0436781f807eefe03e7c19a0d4cdf9528"
+}

@@ -1,0 +1,880 @@
+{
+  "workflowId": "05ff252e-bcdd-4a2b-8dcd-fc47ae558bec",
+  "createdAt": "2026-02-18T01:37:33.20741Z",
+  "updatedAt": "2026-02-18T01:37:33.20741Z",
+  "name": "run-and-review-cwm-sol",
+  "version": "2.1.0",
+  "description": "This workflow automates the execution of device commands, validates output using pre-defined templates and filters, handles errors and retries, and ensures reliable results and output evaluation.",
+  "definition": {
+    "id": "run-and-review-cwm-sol",
+    "name": "run-and-review-cwm-sol",
+    "start": "check-execution-model",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Forbidden",
+        "description": "UNAUTHORIZED REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-execution-model",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "sequential-execution",
+            "condition": "${ if (.\"app-data\".\"executionMode\" == 2 and .deviceSelection == null) then true else false end}",
+            "transition": {
+              "nextState": "no-device-selecton-error"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "determine-device-selection"
+        }
+      },
+      {
+        "name": "determine-device-selection",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "use-device-selection",
+            "condition": "${.deviceSelection.jsonPath != null}",
+            "transition": {
+              "nextState": "set-selected-device"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-payload"
+        }
+      },
+      {
+        "name": "set-selected-device",
+        "type": "operation",
+        "actions": [],
+        "transition": "check-payload",
+        "stateDataFilter": {
+          "output": "${.selectedDevice = ((.deviceSelection.jsonPath | gsub(\"\\\\[(?<i>[0-9]+)\\\\]\"; \".\\(.i)\") | split(\".\") | map(select(. != \"\")) | map(tonumber? // .)) as $path | getpath($path)) | .\"app-data\".device = .selectedDevice}"
+        }
+      },
+      {
+        "name": "check-payload",
+        "type": "operation",
+        "actions": [],
+        "transition": "process-jq-expressions",
+        "stateDataFilter": {
+          "output": "${ if .operation.payload != null then (.operation.payload |= fromjson) else . end }"
+        }
+      },
+      {
+        "name": "process-jq-expressions",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "process-jq-expressions",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {data_source: ., expression_json: .} }",
+                  "path": "/v1/cwms-utils/process-jq-expressions"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .processedJQData }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "JQ expressions processed if they are present in the input data."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "check-expression-process-result"
+      },
+      {
+        "name": "check-expression-process-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-compare",
+            "condition": "${if .processedJQData.status == \"success\" then true else false end}",
+            "transition": "format-processed-data"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "process-jq-expression-failure"
+        }
+      },
+      {
+        "name": "format-processed-data",
+        "type": "operation",
+        "actions": [],
+        "transition": "command-executor",
+        "stateDataFilter": {
+          "output": "${. | . = .processedJQData.data}"
+        }
+      },
+      {
+        "name": "command-executor",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "sleep-before",
+            "condition": "${ (.retryCount == null or .retryCount == 0) and .operation.\"delay\" != null and .operation.\"delay\" > 0 }",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ .operation.\"delay\" | tostring }",
+                  "path": "/v1/cwms-utils/sleep"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            }
+          },
+          {
+            "name": "execute-device-command",
+            "retryRef": "Default",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": "${ .activity.execCommand = .operation.command | .activity.resourceId = .\"app-data\".resource | .activity.device = .\"app-data\".device.name | .activity.method = .operation.method | .activity.path = .operation.path  | .activity.input = (if .operation.payload == null then \"\" else .operation.payload end)}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Device command executed. Validating command output."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-cmd-output"
+      },
+      {
+        "name": "validate-cmd-output",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .activityOutput.status==\"success\" then true else false end}",
+            "transition": "parse-command-output"
+          },
+          {
+            "name": "output is invalid",
+            "condition": "${ if (.activityOutput.status==\"error\") then true else false end}",
+            "transition": "execution-error"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "parse-command-output",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "apply-textfsm-template",
+            "condition": "${ .operation.template and (.operation.template | length) > 0 }",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {template: .operation.template, input: (.activityOutput | if has(\"output\") then .output else .data end | tostring)} }",
+                  "path": "/v1/cwms-utils/parse-text"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .activityOutput.output }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Command output parsed. Applying filter if applicable."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "apply-filter"
+      },
+      {
+        "name": "apply-filter",
+        "type": "operation",
+        "actions": [
+          {
+            "condition": "${ (.operation.filter | length) > 0 }",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {filter: .operation.filter, input: (.activityOutput | if has(\"output\") then .output else .data end | tostring) } }",
+                  "path": "/v1/cwms-utils/apply-filter"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data end }",
+              "toStateData": "${ .filteredOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Filter applied. Evaluating expressions if any."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "check-compare"
+      },
+      {
+        "name": "check-compare",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-compare",
+            "condition": "${if .operation.compare == true then true else false end}",
+            "transition": "validate-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "format-state-data"
+        }
+      },
+      {
+        "name": "validate-stash",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "validate-stash",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {oldValue: (.stash | tostring), newValue: (if (.filteredOutput != null) then (.filteredOutput | tostring) else (.activityOutput | if has(\"output\") then .output else .data end | tostring) end) } }",
+                  "path": "/v1/cwms-utils/compare-output"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .validateStashResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Stash evaluated. Checking for differences between pre and post data."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "format-state-data"
+      },
+      {
+        "name": "format-state-data",
+        "type": "operation",
+        "transition": "evaluate",
+        "stateDataFilter": {
+          "output": "${. | .evaluateData = (.activityOutput + .validateStashResult + {\"app-data\": .\"app-data\"})}"
+        }
+      },
+      {
+        "name": "evaluate",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "evaluate",
+            "condition": "${ .operation.expressions and (.operation.expressions | length) > 0 }",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {expressions: .operation.expressions, input: ((.evaluateData as $evaluateData | $evaluateData | (if has(\"output\") then .output else .data end) as $onlyEvaluateData | $evaluateData | (if has(\"differenceSummary\") then (if ($onlyEvaluateData | type == \"object\") then ($onlyEvaluateData + {\"hasDifference\": .hasDifference, \"app-data\": .\"app-data\"}) else ($onlyEvaluateData + [{\"hasDifference\": .hasDifference, \"app-data\": .\"app-data\"}]) end) else (if $onlyEvaluateData | type == \"object\" then ($onlyEvaluateData + {\"app-data\": .\"app-data\"}) else ($onlyEvaluateData + [{\"app-data\": .\"app-data\"}]) end) end) | tostring) | tostring) } }",
+                  "path": "/v1/cwms-utils/evaluate"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data else null end }",
+              "toStateData": "${ .metricCheckResult }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Expressions evaluated. Checking for errors/warnings/success."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "transition": "check-errors-warnings"
+      },
+      {
+        "name": "check-errors-warnings",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if result has error",
+            "condition": "${ [.metricCheckResult[] | select(.status==\"error\" and .result==true)] | length>0 }",
+            "transition": "set-failed-status"
+          },
+          {
+            "name": "if result has warnings",
+            "condition": "${ [.metricCheckResult[] | select(.status==\"warning\" and .result==true)] | length>0 }",
+            "transition": "set-warning-status"
+          },
+          {
+            "name": "if result is true",
+            "condition": "${ [.metricCheckResult[] | select(.status==\"success\" and .result==true)] | length>0 }",
+            "transition": "set-success-status"
+          },
+          {
+            "name": "if success condition fails",
+            "condition": "${ [.metricCheckResult[] | select(.status==\"success\" and .result==false)] | length>0 }",
+            "transition": "set-failed-status-conditionMatch-false"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-success-status-conditionMatch-false"
+        }
+      },
+      {
+        "name": "set-success-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", conditionMatch:\"true\", message: [(if [.metricCheckResult[] | select((.status == \"success\" and .result == true))] | length > 0 then (.metricCheckResult[] | select(.status == \"success\" and .result == true).message) else \"The check completed successfully\" end)][0], stash: (if .sequence_number != null then ([{sequence_number:.sequence_number, output: (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end)}]) else (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end) end), compareOutput: (if .validateStashResult != null then .validateStashResult else \"There is no issues with the data\" end), processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "set-success-status-conditionMatch-false",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", conditionMatch:\"false\", message: [(if [.metricCheckResult[] | select((.status == \"success\"))] | length > 0 then (.metricCheckResult[] | select(.status == \"success\").message) else \"The check completed successfully\" end)][0], stash: (if .sequence_number != null then ([{sequence_number:.sequence_number, output: (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end)}]) else (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end) end), compareOutput: (if .validateStashResult != null then .validateStashResult else \"There is no issues with the data\" end), processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"warning\", conditionMatch:\"true\", message: [(if [.metricCheckResult[] | select((.status == \"warning\" and .result == true))] | length > 0 then (.metricCheckResult[] | select(.status == \"warning\" and .result == true).message) else \"The check completed with warnings\" end)][0], stash: (if .sequence_number != null then ([{sequence_number:.sequence_number, output: (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end)}]) else (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end) end), compareOutput: (if .validateStashResult != null then .validateStashResult else \"There are some issues with the data\" end), processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "set-failed-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", conditionMatch:\"true\", message: [(if [.metricCheckResult[] | select((.status == \"error\" and .result == true))] | length > 0 then (.metricCheckResult[] | select(.status == \"error\" and .result == true).message) else \"The check completed with errors\" end)][0], stash: (if .sequence_number != null then ([{sequence_number:.sequence_number, output: (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end)}]) else (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end) end), compareOutput: (if .validateStashResult != null then .validateStashResult else \"There are some issues with the data\" end), processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "set-failed-status-conditionMatch-false",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", conditionMatch:\"false\", message: [(if [.metricCheckResult[] | select((.status == \"error\"))] | length > 0 then (.metricCheckResult[] | select(.status == \"error\").message) else \"The check completed with errors\" end)][0], stash: (if .sequence_number != null then ([{sequence_number:.sequence_number, output: (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end)}]) else (if .filteredOutput then .filteredOutput else (.activityOutput | if has(\"output\") then .output else .data end) end) end), compareOutput: (if .validateStashResult != null then .validateStashResult else \"There are some issues with the data\" end), processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Resource not found\" } }"
+        }
+      },
+      {
+        "name": "execution-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: (\"NSO execution error.\" + (if .activityOutput.errors != null or .activityOutput.errors != \"\" then .activityOutput.errors else \"\" end)) } }"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Exited abnormally\" } }"
+        }
+      },
+      {
+        "name": "rest-api-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Automation API error\" } }"
+        }
+      },
+      {
+        "name": "forbidden-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Unauthorized request error\" } }"
+        }
+      },
+      {
+        "name": "server-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Internal server error\" } }"
+        }
+      },
+      {
+        "name": "error-exit",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: (if .activityOutput.output != null then (\"Execution errors persist after retries. Error is: \" + .activityOutput.output) else \"Execution errors persist after retries.\"), processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "timeout-expired",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Timeout expired.\" } }"
+        }
+      },
+      {
+        "name": "no-device-selecton-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Execution model is fleet-wide, but deviceSelection is not present.\" } }"
+        }
+      },
+      {
+        "name": "process-jq-expression-failure",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"The JQ expression evaluation ended in failure.\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.1,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "CWMSUtils.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "This workflow automates the execution of device commands, validates output using pre-defined templates and filters, handles errors and retries, and ensures reliable results and output evaluation.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "required": [
+          "operation"
+        ],
+        "properties": {
+          "operation": {
+            "type": "object",
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "const": "execCli"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "command",
+                    "template"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "enum": [
+                        "get",
+                        "post",
+                        "delete"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "path"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "const": "post"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "payload": {
+                      "type": "string",
+                      "title": "Payload",
+                      "description": "The payload to be sent with the post request when the method is 'post'. This should be a stringified valid JSON object. Can be omitted for POST requests that don't require a payload."
+                    }
+                  }
+                }
+              }
+            ],
+            "required": [
+              "method",
+              "expressions"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The NSO REST Conf URI path to use when the method is 'get' or 'post'\u2014that is, the endpoint that can provide the required device data."
+              },
+              "delay": {
+                "type": "number",
+                "title": "Execution Delay",
+                "minimum": 0,
+                "description": "Number of seconds to delay before executing the operation."
+              },
+              "filter": {
+                "type": "string",
+                "description": "A filter (json query) to apply to the processed command output. This is used to narrow down the results based on specific criteria."
+              },
+              "method": {
+                "enum": [
+                  "get",
+                  "post",
+                  "delete",
+                  "execCli"
+                ],
+                "type": "string",
+                "description": "Method to be used for the command execution. Either get, post or execCli"
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The exec-cli command that needs to be executed on the device."
+              },
+              "compare": {
+                "type": "boolean",
+                "description": "Enable comparison between current output and previously stashed data."
+              },
+              "payload": {
+                "type": "string",
+                "title": "Payload",
+                "examples": [
+                  "{}",
+                  "{\"input\": {\"interface-name\": \"GigabitEthernet0/0/1\"}}"
+                ],
+                "description": "The payload to be sent with the post request when the method is 'post'. This should be a stringified valid JSON object. Optional - can be omitted if the POST request doesn't require a payload."
+              },
+              "template": {
+                "type": "string",
+                "description": "TextFSM template to be applied to the command output. This is used to parse the command output into structured data."
+              },
+              "expressions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "condition",
+                    "message",
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                        "warning",
+                        "success"
+                      ],
+                      "type": "string",
+                      "description": "The status of the expression evaluation."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "The message to display when the condition is met."
+                    },
+                    "condition": {
+                      "type": "string",
+                      "description": "The json query condition to evaluate against the command output."
+                    }
+                  },
+                  "description": "An expression to evaluate against the command output."
+                },
+                "minItems": 1,
+                "description": "A list of json query expressions to evaluate against the command output. These expressions are used against the processed command output to determine the final result."
+              }
+            },
+            "description": "Details of the operation to be executed, including the method, command, and path."
+          },
+          "deviceSelection": {
+            "type": "object",
+            "properties": {
+              "jsonPath": {
+                "type": "string",
+                "description": "JSONPath expression to select a specific device from input data."
+              }
+            },
+            "description": "Optional device selection configuration for dynamic device targeting."
+          }
+        },
+        "description": "Input schema for the workflow. This schema specifies the required structure and properties for input data."
+      }
+    },
+    "failOnValidationErrors": true
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.run-and-review-cwm-sol",
+  "path": "",
+  "hashSum": "5dbba1936104caddae947935c64e901491a35abe6bcda0e5875abadcf5dc8773"
+}

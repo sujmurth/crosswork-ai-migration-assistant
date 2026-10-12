@@ -1,0 +1,77 @@
+{
+  "workflowId": "d56dffb1-1547-40aa-881e-e345e72ba195",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-07-17T16:30:07.22603Z",
+  "name": "07.updateRRv6Policy",
+  "version": "1.0",
+  "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
+  "definition": {
+    "id": "updateRRv6Policy-1.0",
+    "name": "07.updateRRv6Policy",
+    "start": "iterateDevice",
+    "states": [
+      {
+        "name": "getDevices",
+        "type": "operation",
+        "actions": [
+          {
+            "version": "1.0",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "genericGetDevices"
+            }
+          }
+        ],
+        "actionMode": "sequential",
+        "transition": "iterateDevice"
+      },
+      {
+        "mode": "sequential",
+        "name": "iterateDevice",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "updateRRv6DeliverPayload",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "transition": "endOfWF",
+        "iterationParam": "node",
+        "inputCollection": "${ .devices }",
+        "stateDataFilter": {
+          "output": "${ . | del (.devices) }"
+        },
+        "outputCollection": "${ .payloadResult }"
+      },
+      {
+        "end": true,
+        "name": "endOfWF",
+        "type": "operation"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "step-7h",
+    "RRv6",
+    "step-7a"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "73e5d1e05b70a67843b494457b71f1881eba7ea6aa48e94161951b32bfc48de7"
+}

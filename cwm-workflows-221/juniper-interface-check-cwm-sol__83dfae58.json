@@ -1,0 +1,475 @@
+{
+  "workflowId": "83dfae58-0a6b-44e0-a19b-dbb38c08ed90",
+  "createdAt": "2026-02-18T01:36:29.514952Z",
+  "updatedAt": "2026-06-29T21:45:16.535357Z",
+  "name": "juniper-interface-check-cwm-sol",
+  "version": "2.1.0",
+  "description": "Check the interface state during Pre and Post upgrade phase (Juniper Devices). If there are differences between the pre and post upgrade data then it is captured and \"warning\" is returned. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "juniper-interface-check-cwm-sol",
+    "name": "juniper-interface-check-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Interface check failed.",
+              "condition": ".\"interface-information\".\"physical-interface\" | length > 0"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for interface check"
+            }
+          ]
+        },
+        "transition": "execute-interface-check"
+      },
+      {
+        "name": "execute-interface-check",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-interface-information/get-interface-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for interface check. Interface pre-upgrade check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Interface pre-upgrade check is successful.\", stash: .rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\"}}"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in alarms",
+            "condition": "${ (.rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\"|sort) != (.stash|sort) }",
+            "transition": "interface-post-check-get-differences"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "interface-post-check-passed"
+        }
+      },
+      {
+        "name": "interface-post-check-passed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for interface check. Interface post check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Interface post check is successful.\", stash: .rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\"}}"
+        }
+      },
+      {
+        "name": "interface-post-check-get-differences",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Interface check completed with warnings, getting missing hostnames"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "interface-post-check-get-removed-interfaces"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += [([(.stash as $f1 | .rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\" as $f2 | ($f1 - $f2).[] as $f3 | reduce $f3 as {$name} (null; ($f2.[] | select(.name == $name)))).name] | if . == [] then \"There are no changes in the existing interfaces.\" else \"Interfaces with changes: \" + (. | join(\", \")) end)] }"
+        }
+      },
+      {
+        "name": "interface-post-check-get-removed-interfaces",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Interface check completed with warnings, getting removed hostnames"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "interface-post-check-get-added-interfaces"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += [([.stash[].name] as $f1 | [.rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\"[].name] as $f2 | ($f1 - $f2) as $f3 | if $f3 != [] then (\"Removed interfaces: \" + ($f3 | join(\", \"))) else \"No interfaces removed.\" end)] }"
+        }
+      },
+      {
+        "name": "interface-post-check-get-added-interfaces",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Interface check completed with warnings, getting removed names"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "set-warning-status"
+        },
+        "stateDataFilter": {
+          "output": "${ .warnings += [([.rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\"[].name] as $f1 | [.stash[].name] as $f2 | ($f1 - $f2) as $f3 | if $f3 != [] then (\"Added interfaces: \" + ($f3 | join(\", \"))) else \"No interfaces added.\" end)] }"
+        }
+      },
+      {
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Interface check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"warning\", \"message\": (if .warnings then .warnings | join(\", \") else \"There are differences between pre and post upgrade data\" end), stash: .rakutilExecutorData.stash.output.\"interface-information\".\"physical-interface\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Interface check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Interface check failed.\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Interface check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        {
+          "mtu": "9192",
+          "name": "cbp0",
+          "if-type": "Ethernet",
+          "link-type": "Full-Duplex",
+          "snmp-index": 501,
+          "local-index": 138,
+          "oper-status": "up",
+          "admin-status": "up",
+          "if-media-flags": {
+            "ifmf-none": [
+              null
+            ]
+          },
+          "if-config-flags": {
+            "iff-snmp-traps": [
+              null
+            ]
+          },
+          "if-device-flags": {
+            "ifdf-present": [
+              null
+            ],
+            "ifdf-running": [
+              null
+            ]
+          },
+          "link-level-type": "Ethernet",
+          "interface-flapped": "Never",
+          "traffic-statistics": {
+            "input-packets": 0,
+            "output-packets": 0
+          },
+          "current-physical-address": "00:1d:b5:2a:48:11",
+          "hardware-physical-address": "00:1d:b5:2a:48:11"
+        }
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Check the interface state during Pre and Post upgrade phase (Juniper Devices). If there are differences between the pre and post upgrade data then it is captured and \"warning\" is returned. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "interfaceCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "4a0f321fbdde83ac67e6bf553b6fe413e010df8ba5218c1d7cfe04463271914f"
+}

@@ -1,0 +1,16 @@
+<golden-config xmlns="http://example.com/golden-config">
+  <template>
+    <name>ipv6-loopback-template</name>
+    <tag>SRv6-Migration</tag>
+    <version>
+      <id>1</id>
+      <type>native</type>
+      <mode>merge</mode>
+      <config>
+interface Loopback0
+ ipv6 address 2010::{{id}}/128
+ exit
+</config>
+    </version>
+  </template>
+</golden-config>

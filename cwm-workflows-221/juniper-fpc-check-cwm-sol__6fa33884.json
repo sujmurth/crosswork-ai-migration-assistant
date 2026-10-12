@@ -1,0 +1,402 @@
+{
+  "workflowId": "6fa33884-6231-4f9a-b474-dbc10a625e29",
+  "createdAt": "2026-02-18T01:36:29.496907Z",
+  "updatedAt": "2026-06-29T21:45:16.479985Z",
+  "name": "juniper-fpc-check-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks the status of the device (Juniper devices) to see if the Flexible PIC Concentrator (FPC) details for pre and post upgrade are same. If there are differences then \"warning\" is returned. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "juniper-fpc-check-cwm-sol",
+    "name": "juniper-fpc-check-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "success",
+              "message": "fpc check failed.",
+              "condition": ".\"fpc-information\".\"fpc\" | length > 0"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for fpc check"
+            }
+          ]
+        },
+        "transition": "execute-fpc-check"
+      },
+      {
+        "name": "execute-fpc-check",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-fpc-information/get-fpc-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for fpc check. fpc pre-upgrade check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"fpc pre-upgrade check is successful.\", stash: .rakutilExecutorData.stash.output.\"fpc-information\".\"fpc\"}}"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in alarms",
+            "condition": "${ (.rakutilExecutorData.stash.output.\"fpc-information\".\"fpc\"|sort) != (.stash|sort) }",
+            "transition": "fpc-post-check-failed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "fpc-post-check-passed"
+        }
+      },
+      {
+        "name": "fpc-post-check-passed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Creating stash for fpc check. fpc post check is successful."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"fpc post check is successful.\", stash: .rakutilExecutorData.stash.output.\"fpc-information\".\"fpc\"}}"
+        }
+      },
+      {
+        "name": "fpc-post-check-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "fpc check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"warning\", message: \"fpc check completed with warnings.\", stash: .rakutilExecutorData.stash.output.\"fpc-information\".\"fpc\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Alarm check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Alarm check failed.\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Alarm check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        {
+          "slot": 0,
+          "state": "Empty"
+        },
+        {
+          "slot": 1,
+          "state": "Empty"
+        },
+        {
+          "slot": 2,
+          "state": "Empty"
+        },
+        {
+          "slot": 3,
+          "state": "Offline",
+          "comment": "FPC offlined due to unreachable destinations"
+        },
+        {
+          "slot": 4,
+          "state": "Empty"
+        },
+        {
+          "slot": 5,
+          "state": "Empty"
+        },
+        {
+          "slot": 6,
+          "state": "Empty"
+        },
+        {
+          "slot": 7,
+          "state": "Empty"
+        },
+        {
+          "slot": 8,
+          "state": "Empty"
+        },
+        {
+          "slot": 9,
+          "state": "Empty"
+        },
+        {
+          "slot": 10,
+          "state": "Offline",
+          "comment": "FPC offlined due to unreachable destinations"
+        },
+        {
+          "slot": 11,
+          "state": "Empty"
+        }
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks the status of the device (Juniper devices) to see if the Flexible PIC Concentrator (FPC) details for pre and post upgrade are same. If there are differences then \"warning\" is returned. If the execution fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "fpcCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "f832f2d8362835c6d6e8e5726664ce3c79c92a5f534997638178a57db1943c31"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "rr-peer-template",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\n{# Phase 3 (deck step 7b): on RRv6, add vpnv4 SRv6 neighbors for the PE nodes #}\nrouter bgp {{ bgp_as }}\naddress-family vpnv4 unicast\nexit\n\n{% if neighbors|length > 0 %}\n  {% for item in neighbors.split(',') %}\n    {% set device_id = item.lstrip('node-') %}\n    neighbor 2010::{{ device_id }}\n    remote-as {{ bgp_as }}\n    update-source {{ loopback }}\n    address-family vpnv4 unicast\n    route-reflector-client\n    exit\n    exit\n  {% endfor %}\n{% endif %}\n",
+      "variable": [
+        {
+          "name": "bgp_as",
+          "value": "65000"
+        },
+        {
+          "name": "loopback",
+          "value": "Loopback0"
+        },
+        {
+          "name": "neighbors",
+          "value": "node-2,node-4"
+        }
+      ]
+    }
+  ]
+}

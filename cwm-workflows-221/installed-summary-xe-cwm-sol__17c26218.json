@@ -1,0 +1,286 @@
+{
+  "workflowId": "17c26218-2586-4d83-8081-50b4330b8d25",
+  "createdAt": "2026-02-18T01:36:29.218867Z",
+  "updatedAt": "2026-06-29T21:45:15.236809Z",
+  "name": "installed-summary-xe-cwm-sol",
+  "version": "2.1.0",
+  "description": "Verifies if all packages are activated and committed for XE devices. The output of the command is executed to check whether the status is activated and committed (C). If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "installed-summary-xe-cwm-sol",
+    "name": "installed-summary-xe-cwm-sol",
+    "start": "inject-template-and-expressions-xe",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "template": "Value Required St (\\S+) \n\nStart\n  ^\\w+\\s+${St}\\s+\\d+ -> Record",
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "Installed summary check failed due to package inconsistency.",
+              "condition": "((. | length > 0) and ([.[] | select(.St | ascii_downcase != \"c\")] | length > 0))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for installed summary check for XE devices"
+            }
+          ]
+        },
+        "transition": "check-xe-installed-summary"
+      },
+      {
+        "name": "check-xe-installed-summary",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": \"show install summary\", \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "warning condition",
+            "condition": "${ if .rakutilExecutorData.status==\"warning\" then true else false end}",
+            "transition": "return-warning"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Installed summary check completed successfully. Packages are Activated & Committed."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Installed summary check completed successfully.\"}}"
+        }
+      },
+      {
+        "name": "return-warning",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Installed summary check did not meet the success condition"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status:\"warning\", message: \"Installed summary check failed due to package inconsistency.\", stash: .rakutilExecutorData.nsoResponse }}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Installed summary check (XE) failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"There was an error in getting proper response for the check.\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Installed summary check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Exited abnormally.\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Verifies if all packages are activated and committed for XE devices. The output of the command is executed to check whether the status is activated and committed (C). If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "installedSummaryCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "1596f7cb9469d8286ac7fa0b02d84ff3241c47ae633691f7b8cac651df62e350"
+}

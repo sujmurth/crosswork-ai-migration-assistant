@@ -1,0 +1,71 @@
+{
+  "workflowId": "6fda32fe-0589-454a-915c-efc8a5a27da7",
+  "createdAt": "2026-07-24T22:06:34.051735Z",
+  "updatedAt": "2026-07-24T22:06:34.051735Z",
+  "name": "zzVerify2",
+  "version": "1.0",
+  "description": "",
+  "definition": {
+    "id": "zzVerify2",
+    "name": "zzVerify2",
+    "start": "exec",
+    "states": [
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "exec",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "runCheck",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "input": {
+                      "args": "${ .check.command }"
+                    }
+                  },
+                  "path": "/restconf/operations/devices/device=${ .check.node }/live-status/${ .check.nedExec // \"tailf-ned-cisco-ios-xr-stats\" }:exec/any",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "${ \"nsoRest\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then ( .data | to_entries[0].value.result ) else \"\" end }",
+              "toStateData": "${ .rawOutput }"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ { verdict: ( (.rawOutput // \"\") | test(.check.expect) ) } | ( if .verdict then . else error(\"verdict-fail\") end ) }"
+        }
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "verify"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "a3a037dcabefffe0f2464f00c444413426b0f910fbf611118b0838e6cb855b0a"
+}

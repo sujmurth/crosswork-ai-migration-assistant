@@ -1,0 +1,298 @@
+{
+  "workflowId": "7975a08a-bf90-4e5d-994a-00b96a9e56b8",
+  "createdAt": "2026-02-18T01:37:33.185309Z",
+  "updatedAt": "2026-02-18T01:37:33.185309Z",
+  "name": "sleep-cwm-sol",
+  "version": "2.1.0",
+  "description": "This is a workflow to sleep for a specified amount of time. The user needs to provide the number of seconds the workflow needs to sleep as input and the workflow would remain idle for that period of time.",
+  "definition": {
+    "id": "sleep-cwm-sol",
+    "name": "sleep-cwm-sol",
+    "start": "sleep",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_401",
+        "name": "Authorization_Failed",
+        "description": "Authorization Failed"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "Entity_Not_Found",
+        "description": "ENTITY NOT FOUND"
+      },
+      {
+        "code": "joinError",
+        "name": "Validation_Failed",
+        "description": "Validation Failed"
+      }
+    ],
+    "states": [
+      {
+        "end": true,
+        "name": "sleep",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "sleep",
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ .sleepDuration | tostring }",
+                  "path": "/v1/cwms-utils/sleep"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling sleep from automations API to sleep for required seconds."
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "internal-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT25H"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": (\"Slept for \" + (.sleepDuration | tostring) + \" seconds.\")}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Please check the input to the request to the operation"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Please check the input to the request to the operation.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "401-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Authorization failed"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Authorization failed.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "404-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Entity not found, please check"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Entity not found.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "unauthorized-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Unauthorized request"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Unauthorized access.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "internal-api-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Internal server error"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Internal server error.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Resource not found"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Resource not found.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Exited abnormally"
+            }
+          ]
+        },
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Exited abnormally.\"} }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT25H"
+      }
+    },
+    "functions": [
+      {
+        "name": "CWMSUtils.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "This is a workflow to sleep for a specified amount of time. The user needs to provide the number of seconds the workflow needs to sleep as input and the workflow would remain idle for that period of time.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "Sleep Duration Configuration",
+        "required": [
+          "sleepDuration"
+        ],
+        "properties": {
+          "sleepDuration": {
+            "type": "integer",
+            "title": "Sleep Duration",
+            "maximum": 86400,
+            "minimum": 1,
+            "examples": [
+              10,
+              30,
+              60,
+              300,
+              1800
+            ],
+            "description": "Number of seconds the workflow should remain idle/paused"
+          }
+        },
+        "description": "Configuration for workflow sleep/wait functionality",
+        "additionalProperties": true
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.sleep-cwm-sol",
+  "path": "",
+  "hashSum": "9202b4d5aed82d253c216b14cbd7dedc7b4de04a3a2faff0baf032f65a9c84db"
+}

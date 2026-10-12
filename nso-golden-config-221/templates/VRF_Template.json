@@ -1,0 +1,37 @@
+{
+  "name": "VRF_Template",
+  "tag": [
+    "",
+    "demo"
+  ],
+  "version": [
+    {
+      "id": "1.0",
+      "type": "native",
+      "mode": "merge",
+      "config": "vrf {{ vrf }}\n address-family ipv4 unicast\n  import route-target\n   100:100\n  !\n  export route-target\n   100:100\n  !\n !\n address-family ipv6 unicast\n !\n!\ninterface preconfigure {{ intf }}\n description {{ vrf }} Interface\n vrf {{ vrf }}\n!\n\nlogging trap informational\nlogging console disable\nlogging history informational\nlogging monitor debugging\nlogging buffered 3072000\nlogging buffered debugging\nlogging buffered discriminator\n nomatch1 \"service\"\n!\nlogging facility local7\nlogging {{ logging_server }} vrf {{ vrf }} severity info port default\n!\nlogging source-interface {{ intf }} vrf {{ vrf }}\nlogging suppress duplicates\nservice timestamps log datetime localtime msec show-timezone\nservice timestamps debug datetime localtime msec show-timezone\n\nsnmp-server community {{ community }} RW\ncall-home\n service active\n contact smart-licensing\n profile {{ profile }}\n  active\n  destination transport-method email disable\n  destination transport-method http\n !\n! \nnetconf agent tty\n!\n",
+      "variable": [
+        {
+          "name": "community",
+          "value": "ciscorw"
+        },
+        {
+          "name": "intf",
+          "value": "GigabitEthernet0/0/0/0"
+        },
+        {
+          "name": "logging_server",
+          "value": "1.2.3.4"
+        },
+        {
+          "name": "profile",
+          "value": "bootcamp"
+        },
+        {
+          "name": "vrf",
+          "value": "bootcamp"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "workflowId": "ac285d39-8efb-497a-888b-cf7317535925",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-07-17T16:30:07.22603Z",
+  "name": "01.enableIPV6",
+  "version": "1.0",
+  "description": "Enumerate Network Infrastructure Devices and enable IPv6",
+  "definition": {
+    "id": "loopDevices-1.0",
+    "name": "01.enableIPV6",
+    "start": "getDevices",
+    "states": [
+      {
+        "name": "getDevices",
+        "type": "operation",
+        "actions": [
+          {
+            "version": "1.0",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "genericGetDevices"
+            }
+          }
+        ],
+        "actionMode": "sequential",
+        "transition": "iterateDevice"
+      },
+      {
+        "mode": "sequential",
+        "name": "iterateDevice",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "1.0",
+              "workflowId": "enableIPv6DeliverPayload",
+              "onParentComplete": "continue"
+            }
+          }
+        ],
+        "transition": "endOfWF",
+        "iterationParam": "node",
+        "inputCollection": "${ .devices }",
+        "stateDataFilter": {
+          "output": "${ . | del (.devices) }"
+        },
+        "outputCollection": "${ .payloadResult }"
+      },
+      {
+        "end": true,
+        "name": "endOfWF",
+        "type": "operation"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "description": "Enumerate Network Infrastructure Devices and enable IPv6",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "IPv6",
+    "step-4"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "51db3df75b18bbea3bdaba88f1edc7f7d7e63d4986fc21aa1359407b9e16eb06"
+}

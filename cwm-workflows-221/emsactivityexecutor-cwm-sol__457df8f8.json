@@ -1,0 +1,780 @@
+{
+  "workflowId": "457df8f8-b487-45bb-a459-52a3a489528d",
+  "createdAt": "2026-02-18T01:36:28.954718Z",
+  "updatedAt": "2026-06-29T21:45:13.379558Z",
+  "name": "emsactivityexecutor-cwm-sol",
+  "version": "2.1.0",
+  "description": "Executes the EMS activity jobs and waits for job to get completed. This workflow calls the EMS APIs to start the action and then another workflow to monitor the progress of the activity. Failure condition: If the status returned from the EMS adapter is not success then this workflow also returns a failure.",
+  "definition": {
+    "id": "emsactivityexecutor-cwm-sol",
+    "name": "emsactivityexecutor-cwm-sol",
+    "start": "run-action",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "Entity_Not_Found",
+        "description": "ENTITY NOT FOUND"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Device_Http_Error",
+        "description": "DEVICE HTTP ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_NSO_Resource",
+        "description": "INVALID NSO RESOURCE ERROR"
+      },
+      {
+        "code": "ActivityTimeoutError",
+        "name": "Timeout_Error_Activity",
+        "description": "Validation Failed"
+      },
+      {
+        "code": "wrapError",
+        "name": "Wrap_Error_Activity",
+        "description": "Wrap Error"
+      }
+    ],
+    "states": [
+      {
+        "name": "run-action",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "executeImport",
+            "timeouts": {
+              "actionExecTimeout": "PT90M"
+            },
+            "condition": "${.activity.type == \"import\"}",
+            "functionRef": {
+              "refName": "ems-device-ImportImage",
+              "arguments": {
+                "input": {
+                  "fileUrl": "${ .activity.input.repository + \"/\" +.activity.input.\"image-files\"[0] }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then ( .data | fromjson ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeDistribute",
+            "timeouts": {
+              "actionExecTimeout": "PT240M"
+            },
+            "condition": "${.activity.type == \"distribute\"}",
+            "functionRef": {
+              "refName": "ems-device-DistributeImage",
+              "arguments": {
+                "input": {
+                  "fpd": "${ .activity.input.fpd }",
+                  "devices": "${ .deviceIp }",
+                  "vrfName": "${ .activity.input.vrf }",
+                  "location": "${ .activity.input.location }",
+                  "imageName": "${ .activity.input.\"image-files\" }",
+                  "isISSUUpgrade": "${ .activity.input.isISSUUpgrade }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then ( .data | fromjson ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeActivate",
+            "timeouts": {
+              "actionExecTimeout": "PT90M"
+            },
+            "condition": "${.activity.type == \"activate\"}",
+            "functionRef": {
+              "refName": "ems-device-ActivateImage",
+              "arguments": {
+                "input": {
+                  "fpd": "${ .activity.input.fpd }",
+                  "devices": "${ .deviceIp }",
+                  "location": "${ .activity.input.location }",
+                  "imageName": "${ .activity.input.\"image-files\" }",
+                  "isISSUUpgrade": "${ .activity.input.isISSUUpgrade }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then ( .data | fromjson ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeCommit",
+            "timeouts": {
+              "actionExecTimeout": "PT90M"
+            },
+            "condition": "${.activity.type == \"commit\"}",
+            "functionRef": {
+              "refName": "ems-device-CommitImage",
+              "arguments": {
+                "input": {
+                  "devices": "${ .deviceIp }",
+                  "isISSUUpgrade": "${ .isISSUUpgrade }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then ( .data | fromjson ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeGetSWIMPreferences",
+            "timeouts": {
+              "actionExecTimeout": "PT15M"
+            },
+            "condition": "${.activity.type == \"GetSWIMPreferences\"}",
+            "functionRef": {
+              "refName": "ems-device-GetSWIMPreferences",
+              "arguments": {
+                "input": {}
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then ( .data | fromjson ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "executeSetSWIMPreferences",
+            "timeouts": {
+              "actionExecTimeout": "PT15M"
+            },
+            "condition": "${.activity.type == \"SetSWIMPreferences\"}",
+            "functionRef": {
+              "refName": "ems-device-SetSWIMPreferences",
+              "arguments": {
+                "input": {
+                  "swimPreference": "${.swimPreferenceList}"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status == 200 and (.data)) then ( .data | fromjson ) else ({} | .status=\"failed\" | .message=.activity.type + \"action failed.\") end }",
+              "toStateData": "${.activityOutput}"
+            }
+          },
+          {
+            "name": "GetJobSummary",
+            "timeouts": {
+              "actionExecTimeout": "PT15M"
+            },
+            "condition": "${.activity.type == \"GetJobSummary\"}",
+            "functionRef": {
+              "refName": "ems-device-GetJobSummary",
+              "arguments": {
+                "input": {
+                  "jobId": "${ .\"job-id\" | tostring }",
+                  "waitForResult": true
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status==200 then (.data | fromjson) end  }",
+              "toStateData": "${.activityOutput}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Executing ${.activity.type}"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Device_Http_Error",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Invalid_NSO_Resource",
+            "transition": "resource-not-found"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          },
+          {
+            "errorRef": "Wrap_Error_Activity",
+            "transition": "Wrap_Error"
+          }
+        ],
+        "transition": "check-job-type",
+        "stateDataFilter": {
+          "output": "${ { errors: $ERRORS, activityOutput : .activityOutput } }"
+        }
+      },
+      {
+        "name": "check-job-type",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (.activityOutput.jobName == \"GetSWIMPreferences\") or (.activityOutput.jobName == \"SetSWIMPreferences\") }",
+            "transition": "validate-swim-preference-job"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "verify-action-result"
+        }
+      },
+      {
+        "name": "validate-swim-preference-job",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (.activityOutput.jobResult | ascii_downcase == \"success\") }",
+            "transition": "completed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "action-failed"
+        }
+      },
+      {
+        "name": "verify-action-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (.activityOutput.jobResult | ascii_downcase == \"success\") }",
+            "transition": "monitor-job"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "action-failed"
+        }
+      },
+      {
+        "name": "monitor-job",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "monitor-job-details",
+        "stateDataFilter": {
+          "output": "${ if (.activityOutput) then (.\"job-id\"=.activityOutput.\"jobId\") end | .tmp=.activity | del(.activity) | .activity.input.device=.device | if .tmp.extra then .activity.extra =.tmp.extra end | del(.tmp) | .activity.type=\"GetJobSummary\" }"
+        }
+      },
+      {
+        "name": "monitor-job-details",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "monitorjob-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": " ${.}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Device_Http_Error",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Invalid_NSO_Resource",
+            "transition": "resource-not-found"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          },
+          {
+            "errorRef": "Wrap_Error_Activity",
+            "transition": "Wrap_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT240M"
+        },
+        "transition": "verify-job-result"
+      },
+      {
+        "name": "verify-job-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status==\"success\"}",
+            "transition": "completed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "job-failed"
+        }
+      },
+      {
+        "name": "completed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Activity completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ .message=\"completed\" }"
+        }
+      },
+      {
+        "name": "action-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Activity failed. Error message is: ${if .activityOutput.message != null then .activityOutput.message else \"action failed.\" end}"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "failed",
+        "stateDataFilter": {
+          "output": "${ .message=(if .activityOutput.message != null then .activityOutput.message else \"Action Failed. \" end) }"
+        }
+      },
+      {
+        "name": "job-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Activity failed. Error message is: ${if .jobDetails.message != null then .jobDetails.message else \"The scheduled job failed.\" end}"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "failed",
+        "stateDataFilter": {
+          "output": "${ .message=(if .activityOutput.message != null then .activityOutput.message else \"Action Failed. \" end) }"
+        }
+      },
+      {
+        "name": "failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ .status=\"failed\" }"
+        }
+      },
+      {
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Please check the input the request to the operation is not in correct format"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Please check the input the request to the operation is not in correct format. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)) }}"
+        }
+      },
+      {
+        "name": "Timeout_Error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Timeout Error"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Timeout Error. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"error\" end))}} }"
+        }
+      },
+      {
+        "name": "Wrap_Error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Wrap Error"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Please check the inputs. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}}"
+        }
+      },
+      {
+        "name": "missing-data",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Required data is missing or invalid for running the operation"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Required data is missing or invalid for running the operation\" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}} }"
+        }
+      },
+      {
+        "name": "abnormal-device",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Failed to execute action on device. This may be because device is not present or not in sync"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Failed to execute action on device. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}}"
+        }
+      },
+      {
+        "name": "resource-not-found",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Invalid CWM resource. Please check if the resource or sub workflow present in system"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Invalid CWM resource. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}}"
+        }
+      },
+      {
+        "name": "unauthorized-access",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Unable to execute action on NSO due to missing  permissions/access"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Unable to execute action due to missing  permissions/access\" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Failed while executing activity"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{ \"status\": \"error\", message: (\"Failed while executing activity\" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end))}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT240M"
+      }
+    },
+    "functions": [
+      {
+        "name": "ems-device-DistributeImage",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.DistributeImageOnDevice"
+      },
+      {
+        "name": "ems-device-ActivateImage",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.ActivateImageOnDevice"
+      },
+      {
+        "name": "ems-device-CommitImage",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.CommitImageOnDevice"
+      },
+      {
+        "name": "ems-device-ImportImage",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.ImportImageInEMS"
+      },
+      {
+        "name": "ems-device-GetSWIMPreferences",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.GetSwimPreference"
+      },
+      {
+        "name": "ems-device-SetSWIMPreferences",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.SetSwimPreference"
+      },
+      {
+        "name": "ems-device-GetJobSummary",
+        "metadata": {
+          "worker": "cwm-solutions-crosswork.ems"
+        },
+        "operation": "crosswork.ems.@latest.device.GetJobSummary"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Executes the EMS activity jobs and waits for job to get completed. This workflow calls the EMS APIs to start the action and then another workflow to monitor the progress of the activity. Failure condition: If the status returned from the EMS adapter is not success then this workflow also returns a failure.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "dfe123337f924161f21b6a3a3a3e8048192fb30b2bd9d9031905af2678768958"
+}

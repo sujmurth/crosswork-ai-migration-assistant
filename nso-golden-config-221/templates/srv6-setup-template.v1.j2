@@ -1,0 +1,43 @@
+
+{# Phase 2 (deck steps 6a/6b): SRv6 locators TOP/MAIN/BOTTOM/LATENCY + ISISv6 SRv6 #}
+{% set device_id = device.name.lstrip('node-') %}
+segment-routing
+ srv6
+  locators
+   locator TOP
+    micro-segment behavior unode psp-usd
+    prefix fcbb:2:{{ device_id }}::/48
+    algorithm 129
+    exit
+   locator MAIN
+    micro-segment behavior unode psp-usd
+    prefix fcbb:0:{{ device_id }}::/48
+    exit
+   locator BOTTOM
+    micro-segment behavior unode psp-usd
+    prefix fcbb:3:{{ device_id }}::/48
+    algorithm 130
+    exit
+   locator LATENCY
+    micro-segment behavior unode psp-usd
+    prefix fcbb:1:{{ device_id }}::/48
+    algorithm 128
+    exit
+   exit
+  exit
+ exit
+
+router isis 1
+ address-family ipv6 unicast
+  segment-routing srv6
+   locator TOP
+   exit
+   locator MAIN
+   exit
+   locator BOTTOM
+   exit
+   locator LATENCY
+   exit
+  exit
+ exit
+exit

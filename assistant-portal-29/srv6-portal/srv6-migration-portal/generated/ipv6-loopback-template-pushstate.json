@@ -1,0 +1,26 @@
+{
+  "name": "apply-ipv6-loopback",
+  "type": "operation",
+  "actions": [
+    {
+      "name": "ipv6-loopbackApply",
+      "retryRef": "Default",
+      "functionRef": {
+        "refName": "NSO.RestconfPost",
+        "arguments": {
+          "input": {
+            "data": "{\"application\": [{\"device\": \"node-2\", \"template-type\": \"jinja-template\", \"jinja-template\": {\"template\": \"ipv6-loopback-template\", \"version\": \"1\"}, \"name\": \"cwm-gc-ipv6-loopback-node-2\"}, {\"device\": \"node-8\", \"template-type\": \"jinja-template\", \"jinja-template\": {\"template\": \"ipv6-loopback-template\", \"version\": \"1\"}, \"name\": \"cwm-gc-ipv6-loopback-node-8\"}]}",
+            "path": "restconf/data/golden-config:golden-config",
+            "header": {
+              "Accept": "application/yang-data+json",
+              "Content-Type": "application/yang-data+json"
+            }
+          },
+          "config": {
+            "resourceId": "nso-dCloud"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+
+l2vpn
+ xconnect group {{ xconnect_group }}
+  p2p {{ xconnect_group }}
+   interface {{ attachment_circuit }}
+   neighbor evpn evi {{ evi }} target {{ target }} source {{ source }}
+   exit
+  exit
+ exit
+exit

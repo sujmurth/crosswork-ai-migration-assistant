@@ -1,0 +1,103 @@
+{
+  "workflowId": "9af801d3-c621-461d-af1c-6fa32aceff17",
+  "createdAt": "2026-02-18T01:37:33.337334Z",
+  "updatedAt": "2026-02-18T01:37:33.337334Z",
+  "name": "pause-mop-cwm-sol",
+  "version": "2.1.0",
+  "description": "MOP pause action that introduces a manual checkpoint in workflow execution. Allows users to review execution results and decide whether to continue or abort the workflow.",
+  "definition": {
+    "id": "pause-mop-cwm-sol",
+    "name": "pause-mop-cwm-sol",
+    "start": "start",
+    "events": [
+      {
+        "name": "cwm.forms.user-pause-cwm-sol",
+        "type": "cwm.forms.user-pause-cwm-sol",
+        "source": "system.internal.cwm"
+      }
+    ],
+    "states": [
+      {
+        "name": "start",
+        "type": "callback",
+        "action": {
+          "name": "no operation",
+          "functionRef": {
+            "refName": "noop",
+            "arguments": {}
+          }
+        },
+        "eventRef": "cwm.forms.user-pause-cwm-sol",
+        "metadata": {
+          "formData": "${ {message : \"Execution has been paused as per the user request. Please review the results of the executed actions, then press continue to resume\"} }",
+          "taskName": " [ ${ .\"app-data\".jobName } ]-[ ${ if .\"app-data\".device then .\"app-data\".device.host elif .\"app-data\".devices then (.\"app-data\".devices | to_entries | map(.value[0].host) | join(\", \")) end } ] "
+        },
+        "timeouts": {
+          "eventTimeout": "P1M"
+        },
+        "transition": "evaluate-decision"
+      },
+      {
+        "name": "evaluate-decision",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "continue-execution",
+            "condition": "${ .continue == true }",
+            "transition": "continue-execution"
+          },
+          {
+            "name": "abort-execution",
+            "condition": "${ .continue == false }",
+            "transition": "abort-execution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abort-execution"
+        }
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "terminated",
+          "message": "Workflow execution has been aborted by the user."
+        },
+        "name": "abort-execution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "success",
+          "message": "Workflow execution has been continued by the user."
+        },
+        "name": "continue-execution",
+        "type": "inject"
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "P1M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "MOP pause action that introduces a manual checkpoint in workflow execution. Allows users to review execution results and decide whether to continue or abort the workflow.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.user-pause-cwm-sol",
+  "path": "",
+  "hashSum": "4404af793b34b4b42a1a7da4ccc4f9e265721213ea5717ae2ac748fe10892daa"
+}

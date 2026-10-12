@@ -1,0 +1,25 @@
+NAME                                    TAGS                                                          SERVER
+add_time                                built-in,internal                                             
+subtract_time                           built-in,internal                                             
+fetch_current_time_epoch_millis         built-in,internal                                             
+fetch_current_time_epoch_seconds        built-in,internal                                             
+convert_duration_to_millis              built-in,internal                                             
+run_show_command                        built-in,internal                                             
+get_devices_with_recent_config_changes  built-in,internal                                             
+get_device_running_config               built-in,internal                                             
+get_device_health_summary               built-in,internal                                             
+get_device_health_history               built-in,internal                                             
+get_interface_health_history            built-in,internal                                             
+get_top_n_health_data                   built-in,internal                                             
+get_alarms                              built-in,internal                                             
+get_events                              built-in,internal                                             
+get_event_types                         built-in,internal                                             
+get_lsp_sr_statistics_history           built-in,internal                                             
+get_lsp_rsvp_statistics_history         built-in,internal                                             
+get_link_statistics_history             built-in,internal                                             
+get_worst_case_traffic_utilization      user-provided,custom                                          
+run_specific_failure_simulation         user-provided,custom                                          
+get_route_shortest_path                 user-provided,custom                                          
+rag_search_cisco_docs                   cisco8000,qos,rag,srv6,docs,user-provided,custom,iosxe,iosxr  
+
+Total: 22 tool(s)

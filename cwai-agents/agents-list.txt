@@ -1,0 +1,12 @@
+NAME                   SOURCE      VERSION  CAPABILITIES                   STATUS
+adk-nso-config-reader              latest   dra                            Active
+config-drift           Cisco CWAI  1.0      config-drift, dra              Active
+cp-agent-prototype     Cisco CWAI  1.0.0    llm-proxy                      Active
+dnt                    Cisco CWAI  1.0.0    dnt, dra, stm, llm, llm-proxy  Active
+kg-software-revision               v1.0.0   kg                             Active
+qos-migration-agent    Cisco CWAI  1.0.0    llm-proxy, mcp-tools           Active
+srv6-migration-agent   Cisco CWAI  1.0.0    llm-proxy, mcp-tools           Active
+tfd                    Cisco CWAI  1.0.0    tfd, dra                       Active
+workflow-author-agent  Cisco CWAI  1.0.0    llm-proxy, mcp-tools           Active
+
+Total: 9 agent(s)

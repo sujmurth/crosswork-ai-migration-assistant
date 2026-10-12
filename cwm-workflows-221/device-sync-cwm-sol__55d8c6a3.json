@@ -1,0 +1,239 @@
+{
+  "workflowId": "55d8c6a3-be44-4411-8611-1f69cff46cfe",
+  "createdAt": "2026-02-18T01:36:28.995659Z",
+  "updatedAt": "2026-06-29T21:45:14.030032Z",
+  "name": "device-sync-cwm-sol",
+  "version": "2.1.0",
+  "description": "In case the device goes out-of-sync after activation, perform a device sync-from. If the sync-from can be performed, then a success status is returned, while a failure is returned if it is not successful.",
+  "definition": {
+    "id": "device-sync-cwm-sol",
+    "name": "device-sync-cwm-sol",
+    "start": "checkSync",
+    "states": [
+      {
+        "name": "checkSync",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if .activityOutput.data then .activityOutput.data else null end }",
+              "toStateData": ".checksync",
+              "fromStateData": " ${{\"activity\": {\"resourceId\": .\"app-data\".resource, \"method\":\"checkSync\", \"input\":({\"deviceName\":.\"app-data\".device.name})} }}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-checkSync"
+      },
+      {
+        "name": "validate-checkSync",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "device-insync",
+            "condition": "${(.checksync.\"tailf-ncs:output\".result // \"\") | (. != \"\" and . == \"in-sync\")}",
+            "transition": "return-success"
+          },
+          {
+            "name": "device-outofsync",
+            "condition": "${(.checksync.\"tailf-ncs:output\".result // \"\") | (. != \"\" and . == \"out-of-sync\")}",
+            "transition": "validateDeviceOutOfSyncFlag"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "validateDeviceOutOfSyncFlag",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if .activityOutput.status == \"success\" and (.activityOutput.output) then .activityOutput.output end }",
+              "toStateData": "${.deviceSyncResult}",
+              "fromStateData": " ${{\"activity\": {\"path\":(\"restconf/data/tailf-ncs:devices/device=\"+.\"app-data\".device.name+\"/active-settings/out-of-sync-commit-behaviour\"), \"resourceId\": .\"app-data\".resource, \"method\":\"get\"} }}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validateSyncFlag"
+      },
+      {
+        "name": "validateSyncFlag",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "device-insync",
+            "condition": "${.activityOutput.status == \"error\" and .activityOutput.output == \"Required data is missing or invalid for running nso command or operation\"}",
+            "transition": "executeGlobalOutOfSync"
+          },
+          {
+            "name": "device-outofsync",
+            "condition": "${.activityOutput.status == \"error\" and .activityOutput.output != \"Required data is missing or invalid for running nso command or operation\"}",
+            "transition": "abnormal-device"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "deviceSyncFrom"
+        }
+      },
+      {
+        "name": "executeGlobalOutOfSync",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if .activityOutput.status == \"success\" and (.activityOutput.output) then .activityOutput.output end }",
+              "toStateData": "${.deviceSyncResult}",
+              "fromStateData": " ${{\"activity\": {\"path\":(\"restconf/data/tailf-ncs:devices/global-settings/out-of-sync-commit-behaviour?with-defaults=report-all\"), \"resourceId\": .\"app-data\".resource, \"method\":\"get\"}}}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validateGlobalSyncResult"
+      },
+      {
+        "name": "validateGlobalSyncResult",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "device-insync",
+            "condition": "${.activityOutput.status == \"error\" and .activityOutput.output == \"Required data is missing for running nso command or operation\"}",
+            "transition": "deviceSyncFrom"
+          },
+          {
+            "name": "device-outofsync",
+            "condition": "${.activityOutput.status == \"error\" and .activityOutput.output != \"Required data is missing for running nso command or operation\"}",
+            "transition": "abnormal-device"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "deviceSyncFrom"
+        }
+      },
+      {
+        "end": true,
+        "name": "deviceSyncFrom",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "deviceSyncFrom",
+            "condition": "${(.deviceSyncResult.\"tailf-ncs:out-of-sync-commit-behaviour\" // \"\") | (. != \"\" and . == \"reject\")}",
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if .activityOutput.data then .activityOutput.data else null end }",
+              "toStateData": ".deviceSyncResult",
+              "fromStateData": " ${{\"activity\": {\"resourceId\": .\"app-data\".resource, \"method\":\"syncFrom\", \"input\":({\"deviceName\":.\"app-data\".device.name})} }}"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${(.deviceSyncResult.\"tailf-ncs:output\".result // \"\") as $result | if ($result != \"\" and $result == true) | not then { status: \"warning\", message: (\"Failed to perform device sync-from. Error is: \" + .deviceSyncResult.activityOutput.errors) } else { status: \"success\", message: \"Device sync-from successful.\" } end}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"failed while executing activity on resource\"}}"
+        }
+      },
+      {
+        "name": "abnormal-device",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Failed to execute command/action on device. This may be because device is not present or not in sync\"}}"
+        }
+      },
+      {
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"bad request causing failure\"}}"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Device sync-from successful\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "description": "In case the device goes out-of-sync after activation, perform a device sync-from. If the sync-from can be performed, then a success status is returned, while a failure is returned if it is not successful.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "b48091dfd0741838066881040034c3244a819208d716d2575e87649fb0d43796"
+}

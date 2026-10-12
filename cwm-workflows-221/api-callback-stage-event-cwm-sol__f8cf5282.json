@@ -1,0 +1,175 @@
+{
+  "workflowId": "f8cf5282-fbf1-4a16-bbb9-5a93a2804144",
+  "createdAt": "2026-02-18T01:37:33.345898Z",
+  "updatedAt": "2026-02-18T01:37:33.345898Z",
+  "name": "api-callback-stage-event-cwm-sol",
+  "version": "2.1.0",
+  "description": "A dumb workflow that call any API in cwm-infra/cwm-solutions",
+  "definition": {
+    "id": "api-callback-stage-event-cwm-sol",
+    "name": "api-callback-stage-event-cwm-sol",
+    "start": "stage-event-wait",
+    "events": [
+      {
+        "name": "cwm.sol.system.mopStage",
+        "type": "cwm.sol.system.mopStage",
+        "source": "stageStatusSource",
+        "correlation": [
+          {
+            "contextAttributeName": "mopExecId",
+            "contextAttributeValue": "${.mopExecId}"
+          },
+          {
+            "contextAttributeName": "depStage",
+            "contextAttributeValue": "${.depStage}"
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "name": "stage-event-wait",
+        "type": "switch",
+        "timeouts": {
+          "eventTimeout": "P1M",
+          "stateExecTimeout": "P1M"
+        },
+        "eventConditions": [
+          {
+            "eventRef": "cwm.sol.system.mopStage",
+            "transition": "check-status-event-pre",
+            "eventDataFilter": {
+              "data": "${ {mopExecId : .mopExecId, depStage : .depStage, status : .status} }",
+              "toStateData": "${.}"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "eventTimeout"
+        }
+      },
+      {
+        "name": "check-status-event-pre",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status == \"success\" or .status == \"warning\"}",
+            "transition": "schedular-calllback"
+          },
+          {
+            "condition": "${.status == \"running\"}",
+            "transition": "stage-event-wait"
+          },
+          {
+            "condition": "${.status == \"terminated\"}",
+            "transition": "abortExecution"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failedExecution"
+        }
+      },
+      {
+        "name": "schedular-calllback",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "callback",
+            "functionRef": {
+              "refName": "REST.PostRequest",
+              "arguments": {
+                "input": {
+                  "data": "",
+                  "path": "${.path}",
+                  "header": {
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "${.crossworkIp}",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "transition": "successExecution",
+        "stateDataFilter": {
+          "input": "${ . }"
+        }
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "stage schedule callback event has timed out."
+        },
+        "name": "eventTimeout",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "terminated",
+          "message": "stage schedule callback has been aborted by the user."
+        },
+        "name": "abortExecution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "failed",
+          "message": "stage schedule callback failed."
+        },
+        "name": "failedExecution",
+        "type": "inject"
+      },
+      {
+        "end": true,
+        "data": {
+          "status": "success",
+          "message": "stage schedule callback invoked successfully."
+        },
+        "name": "successExecution",
+        "type": "inject"
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT60S",
+        "multiplier": 1,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "P1M"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.PostRequest",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "A dumb workflow that call any API in cwm-infra/cwm-solutions",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "f9e5bb6ceb17daac82c8796b87643b5efd07b41536b885735609d8843085e5c5"
+}

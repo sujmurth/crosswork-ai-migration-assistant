@@ -1,0 +1,803 @@
+{
+  "workflowId": "4811ff27-e353-4b52-a955-65fb62487e6a",
+  "createdAt": "2026-02-18T01:36:28.912287Z",
+  "updatedAt": "2026-06-29T21:45:13.032591Z",
+  "name": "util-executor-cwm-sol",
+  "version": "2.1.0",
+  "description": "Evalaute the expressions of a single device command. The command has its own expression to be evaluated. Failure: 1) If the command is not executed in NSO. 2) If there is an error in parsing the command output returned from NSO using the template. 3) If the conditions provided in the expression evaluate to false.",
+  "definition": {
+    "id": "util-executor-cwm-sol",
+    "name": "util-executor-cwm-sol",
+    "start": "validate-input",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_401",
+        "name": "Authorization_Failed",
+        "description": "Authorization Failed"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "Entity_Not_Found",
+        "description": "ENTITY NOT FOUND"
+      },
+      {
+        "code": "joinError",
+        "name": "Validation_Failed",
+        "description": "Validation Failed"
+      },
+      {
+        "code": "ActivityTimeoutError",
+        "name": "Timeout_Error_Activity",
+        "description": "Validation Failed"
+      }
+    ],
+    "states": [
+      {
+        "name": "validate-input",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .command and (.command == \"\") }",
+            "transition": "validation-error"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-vendor-nso-exec"
+        }
+      },
+      {
+        "end": true,
+        "name": "validation-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Invalid input.\"}}"
+        }
+      },
+      {
+        "name": "check-vendor-nso-exec",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "install-check",
+            "condition": "${(.vendor | ascii_downcase == \"cisco systems\")}",
+            "transition": {
+              "nextState": "command-executor"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "command-executor-juniper"
+        }
+      },
+      {
+        "name": "command-executor",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": "${ .activity.execCommand = .command | .activity.resourceId = .NSOResourceId | .activity.device = .device | .activity.method = \"execCli\" }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling nsoactivityexecutor to run the required command"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "evaluate-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-cmd-output"
+      },
+      {
+        "name": "command-executor-juniper",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": "${ .activity.path = .path | .activity.input = .input | .activity.resourceId = .NSOResourceId | .activity.method = \"post\" }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling nsoactivityexecutor to run the required command"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "evaluate-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "validate-cmd-output"
+      },
+      {
+        "name": "validate-cmd-output",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .activityOutput.status==\"success\" then true else false end}",
+            "transition": "check-vendor"
+          },
+          {
+            "name": "output is invalid",
+            "condition": "${ if .activityOutput.status==\"error\" then true else false end}",
+            "transition": "cmd-execution-error"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-vendor",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "install-check",
+            "condition": "${(.vendor | ascii_downcase == \"cisco systems\")}",
+            "transition": {
+              "nextState": "parse-cmd-result"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "evaluate-juniper"
+        }
+      },
+      {
+        "name": "parse-cmd-result",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "check-result",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {template: .template, input: (.activityOutput.output | tostring)} }",
+                  "path": "/v1/cwms-utils/parse-text"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and .data then .data else null end }",
+              "toStateData": "${ .parsedCmdOutput }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Parsing the NSO command output using template provided"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "evaluate-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT30M"
+        },
+        "transition": "evaluate_cisco",
+        "stateDataFilter": {
+          "output": "${ .+ { errors: $ERRORS, parsedCmdOutput : .parsedCmdOutput } }"
+        }
+      },
+      {
+        "name": "evaluate_cisco",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "evaluate",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {expressions: .expressions, input: (.parsedCmdOutput | tostring)} }",
+                  "path": "/v1/cwms-utils/evaluate"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then .data else null end }",
+              "toStateData": "${ .rakutilExecutorData }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Validating the parsed respose with the list of expressions"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "evaluate-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT30M"
+        },
+        "transition": "check-result",
+        "stateDataFilter": {
+          "output": "${ .+ { errors: $ERRORS, rakutilExecutorData : .rakutilExecutorData } }"
+        }
+      },
+      {
+        "name": "evaluate-juniper",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "evaluate",
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {expressions: .expressions, input: (.activityOutput.data.\"junos-rpc:output\" | tostring)} }",
+                  "path": "/v1/cwms-utils/evaluate"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 and (.data) then .data else null end }",
+              "toStateData": "${ .rakutilExecutorData }"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Validating the parsed respose with the list of expressions"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "evaluate-api-error"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-request-error"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "404-request-error"
+          },
+          {
+            "errorRef": "Authorization_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Validation_Failed",
+            "transition": "401-request-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Timeout_Error_Activity",
+            "transition": "Timeout_Error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT30M"
+        },
+        "transition": "check-result",
+        "stateDataFilter": {
+          "output": "${ .+ { errors: $ERRORS, rakutilExecutorData : .rakutilExecutorData } }"
+        }
+      },
+      {
+        "name": "check-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if result exists",
+            "condition": "${ .rakutilExecutorData[].result | contains(null) }",
+            "transition": "set-failed-status-no-result"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-errors-warnings"
+        }
+      },
+      {
+        "name": "check-errors-warnings",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if result has error",
+            "condition": "${ [.rakutilExecutorData[] | select(.status==\"error\" and .result==true) | .result]|length>0 }",
+            "transition": "set-failed-status"
+          },
+          {
+            "name": "if result has warnings",
+            "condition": "${ [.rakutilExecutorData[] | select(.status==\"warning\" and .result==true) | .result]|length>0 }",
+            "transition": "set-warning-status"
+          },
+          {
+            "name": "if result has failed",
+            "condition": "${ [.rakutilExecutorData[] | select(.status==\"success\" and .result==false) | .result]|length>0 }",
+            "transition": "set-failed-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "success"
+        }
+      },
+      {
+        "name": "success",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "util executor checks have passed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"success\", message: \"Rakutil executor checks have passed.\", device:(if .device then .device else \"\" end), stash: (if .save != false then (if (.vendor | ascii_downcase == \"cisco systems\") then {name: .name, output: .parsedCmdOutput} else {name: .name, output: .activityOutput.data.\"junos-rpc:output\"} end) else null end), nsoResponse: (if .activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result != null then [.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result] else (if .activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result != null then [.activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result] else (if .activityOutput.data.\"junos-rpc:output\" != null then .activityOutput.data.\"junos-rpc:output\" else \"No response from NSO\" end) end) end)} }"
+        }
+      },
+      {
+        "name": "set-failed-status",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "util executor checks have failed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else ( if .expressions[].message != null then .expressions[].message else \"Error.\" end) end) end)), device:(if .device then .device else \"\" end), stash: (if .save != false then (if (.vendor | ascii_downcase == \"cisco systems\") then {name: .name, output: .parsedCmdOutput} else {name: .name, output: .activityOutput.data.\"junos-rpc:output\"} end) else null end), nsoResponse: (if .activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result != null then [.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result] else (if .activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result != null then [.activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result] else (if .activityOutput.data.\"junos-rpc:output\" != null then .activityOutput.data.\"junos-rpc:output\" else \"No response from NSO\" end) end) end)} }"
+        }
+      },
+      {
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "util executor checks have warnings"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"warning\", warnings: [.rakutilExecutorData[] | select(.status==\"warning\" and .result==true) | .message][0], device:(if .device then .device else \"\" end), stash: (if .save != false then (if (.vendor | ascii_downcase == \"cisco systems\") then {name: .name, output: .parsedCmdOutput} else {name: .name, output: .activityOutput.data.\"junos-rpc:output\"} end) else null end), nsoResponse: (if .activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result != null then [.activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result] else (if .activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result != null then [.activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result] else (if .activityOutput.data.\"junos-rpc:output\" != null then .activityOutput.data.\"junos-rpc:output\" else \"No response from NSO\" end) end) end)} }"
+        }
+      },
+      {
+        "name": "set-failed-status-no-result",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Util executor evaluation failed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Util executor evaluation failed. \"), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Resource not found"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Resource not found. \"), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "cmd-execution-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Error while executing command in NSO"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error\" end) end) + \" \" + (if .activityOutput.errors != null then .activityOutput.errors else (\"Command execution error. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)) end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "parse-api-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Error while processing device command output"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Error while processing device command output. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "401-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Authorization failed"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Authorization failed. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "unauthorized-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Unauthorized request"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Unauthorized request. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Please check the input the request to NSO command/operation is not in correct format"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Please check the input the request to NSO command/operation is not in correct format. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "Timeout_Error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Timeout error"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Timeout Error. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "404-request-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Entity not found, please check"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Entity not found, please check. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "evaluate-api-error",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Error while evaluating expressions"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Error while evaluating expressions. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Exited abnormally"
+            }
+          ]
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: ((if [(.expressions[] | select(.status==\"error\").message)] != [] then (.expressions[] | select(.status==\"error\").message) else (if ([.expressions[] | select(.status==\"warning\").message]) != [] then (.expressions[] | select(.status==\"warning\").message) else \"Error.\" end) end) + \" \" + \"Exited abnormally. \" + (if .errors[0].error != null then \"Error is: \" + .errors[0].error else \"\" end)), device:(if .device then .device else \"\" end)} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "Evalaute the expressions of a single device command. The command has its own expression to be evaluated. Failure: 1) If the command is not executed in NSO. 2) If there is an error in parsing the command output returned from NSO using the template. 3) If the conditions provided in the expression evaluate to false.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "d06333b5f84c9bb90ea196062a96b98d7b06cc31558933992f1b79c2bed3762f"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "cisco_docs_rag",
+  "owner": "admin",
+  "version": "1.0",
+  "description": "RAG over Cisco IOS-XR / IOS-XE / Cisco 8000 QoS + SRv6 command references",
+  "url": "http://172.20.163.20:8085/mcp",
+  "transport": "streamable-http",
+  "tags": ["docs", "iosxr", "iosxe", "cisco8000", "qos", "srv6", "rag"]
+}

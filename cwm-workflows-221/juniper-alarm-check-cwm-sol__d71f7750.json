@@ -1,0 +1,410 @@
+{
+  "workflowId": "d71f7750-3d8f-49a9-a74d-eec340b54a59",
+  "createdAt": "2026-02-18T01:36:29.460881Z",
+  "updatedAt": "2026-06-29T21:45:16.191012Z",
+  "name": "juniper-alarm-check-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks the status of the device (Juniper devices) to see if there are any major alarms. \"Warning\" is raised if there are major alarms. The alarms are also checked between pre and post upgrade. In case of a mismatch, \"warning\" is raised. In case of an error in execution, the status is returned as \"failed\" except \"success\" is returned.",
+  "definition": {
+    "id": "juniper-alarm-check-cwm-sol",
+    "name": "juniper-alarm-check-cwm-sol",
+    "start": "inject-expressions",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "expressions": [
+            {
+              "status": "warning",
+              "message": "There are major alarms please check.",
+              "condition": "[.\"alarm-information\".\"alarm-detail\"[] | select(.\"alarm-class\" == \"Major\") | .\"alarm-short-description\"] | length > 0"
+            }
+          ]
+        },
+        "name": "inject-expressions",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for alarm check"
+            }
+          ]
+        },
+        "transition": "execute-alarm-check"
+      },
+      {
+        "name": "execute-alarm-check",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"path\": (\"restconf/operations/devices/device=\" + .\"app-data\".device.name + \"/rpc/rpc-get-system-alarm-information/get-system-alarm-information\"), \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"expressions\": .expressions, \"input\":\"\", \"vendor\": \"Juniper Networks\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if (.rakutilExecutorData.status==\"success\" or .rakutilExecutorData.status==\"warning\") then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is not valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ .rakutilExecutorData.status==\"success\" }",
+            "transition": "return-success-preupgrade"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "alarm-check-warning"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in alarms",
+            "condition": "${ ([.rakutilExecutorData.stash.output.\"alarm-information\".\"alarm-detail\"[] | select(.\"alarm-class\" == \"Major\") | .\"alarm-short-description\"]|sort) != (.stash|sort) }",
+            "transition": "get-extra-alarms"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "alarm-post-check-passed"
+        }
+      },
+      {
+        "name": "get-extra-alarms",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting extra alarms in current execution"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${{status: \"warning\", message: (\"Extra alarm(s): \" + (([.rakutilExecutorData.stash.output.\"alarm-information\".\"alarm-detail\"[] | select(.\"alarm-class\" == \"Major\") | .\"alarm-short-description\"] - .stash) | join(\", \"))), stash: ([.rakutilExecutorData.stash.output.\"alarm-information\".\"alarm-detail\"[] | select(.\"alarm-class\" == \"Major\") | .\"alarm-short-description\"]|sort)}}"
+        }
+      },
+      {
+        "name": "alarm-post-check-passed",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ .rakutilExecutorData.status==\"success\" }",
+            "transition": "return-success-postupgrade"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "alarm-check-warning"
+        }
+      },
+      {
+        "name": "return-success-preupgrade",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Alarm check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Alarm check passed.\"}}"
+        }
+      },
+      {
+        "name": "alarm-check-warning",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Alarm check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"warning\", message: \"Alarm check completed with warnings.\", stash: ([.rakutilExecutorData.stash.output.\"alarm-information\".\"alarm-detail\"[] | select(.\"alarm-class\" == \"Major\") | .\"alarm-short-description\"]|sort)}}"
+        }
+      },
+      {
+        "name": "return-success-postupgrade",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Alarm check completed successfully"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Alarm check passed. Alarms have been removed post upgrade.\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Alarm check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Alarm check failed.\" end)}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Alarm check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        "FPC 10 unreachable",
+        "FPC 3 unreachable P",
+        "PEM 3 Unrecognized"
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks the status of the device (Juniper devices) to see if there are any major alarms. \"Warning\" is raised if there are major alarms. The alarms are also checked between pre and post upgrade. In case of a mismatch, \"warning\" is raised. In case of an error in execution, the status is returned as \"failed\" except \"success\" is returned.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "alarmCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "e5700b112cbaf01ada0778072518dba4c9c8b40355292f34425b8885f6e599b1"
+}

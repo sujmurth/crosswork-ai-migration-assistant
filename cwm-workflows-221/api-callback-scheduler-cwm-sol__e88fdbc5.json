@@ -1,0 +1,80 @@
+{
+  "workflowId": "e88fdbc5-3130-44ea-8c12-73be0fa92e6d",
+  "createdAt": "2026-02-18T01:36:29.656537Z",
+  "updatedAt": "2026-06-29T21:45:16.75454Z",
+  "name": "api-callback-scheduler-cwm-sol",
+  "version": "1.0.0",
+  "description": "A dumb workflow that call any API in cwm-infra/cwm-solutions",
+  "definition": {
+    "id": "api-callback-scheduler-cwm-sol",
+    "name": "api-callback-scheduler-cwm-sol",
+    "tags": [
+      "internal-cwm-sol",
+      "orchestration",
+      "callback-dummy"
+    ],
+    "start": "apicallback",
+    "states": [
+      {
+        "end": true,
+        "name": "apicallback",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "callback",
+            "functionRef": {
+              "refName": "REST.PostRequest",
+              "arguments": {
+                "input": {
+                  "data": "",
+                  "path": "${.path}",
+                  "header": {
+                    "Content-Type": "application/json"
+                  }
+                },
+                "config": {
+                  "resource": {
+                    "connection": {
+                      "host": "${.crossworkIp}",
+                      "port": 8080,
+                      "protocol": "http"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "input": "${ . }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT60S",
+        "multiplier": 1,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0.0",
+    "functions": [
+      {
+        "name": "REST.PostRequest",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "A dumb workflow that call any API in cwm-infra/cwm-solutions",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "7093a3deb59ecf2b23be4dd0bb656a2ec6fc62bbde6d9e4dd60fd85f9796ae9a"
+}

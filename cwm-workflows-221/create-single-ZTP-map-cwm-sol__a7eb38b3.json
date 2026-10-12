@@ -1,0 +1,219 @@
+{
+  "workflowId": "a7eb38b3-036e-41dd-bd02-b0388a26d3bc",
+  "createdAt": "2026-02-18T01:36:29.695418Z",
+  "updatedAt": "2026-06-29T21:45:16.788028Z",
+  "name": "create-single-ZTP-map-cwm-sol",
+  "version": "1.0",
+  "description": "The workflow creates a ZTP map service and waits for the completion.",
+  "definition": {
+    "id": "create-single-ZTP-map-cwm-sol",
+    "name": "create-single-ZTP-map-cwm-sol",
+    "start": "CreateSinglePoll",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "generic-error",
+        "description": "generic-error"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "invalid-value-400",
+        "description": "invalid-value-400"
+      }
+    ],
+    "states": [
+      {
+        "name": "CreateSinglePoll",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "Create-Single",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPut",
+              "arguments": {
+                "input": {
+                  "data": "{ \"map\": ${ .ztp.map | tostring } }",
+                  "path": "restconf/data/cisco-ztp:ztp/map=${ .ztp.map.id }"
+                },
+                "config": {
+                  "resourceId": "${ .nsoInstance }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.status) then {\"status\":.status} else null end }",
+              "toStateData": "${ . }"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "generic-error",
+            "transition": "OperationFailed"
+          },
+          {
+            "errorRef": "invalid-value-400",
+            "transition": "FatalCreation"
+          }
+        ],
+        "transition": {
+          "nextState": "MapCreated"
+        },
+        "stateDataFilter": {
+          "input": "${ . }"
+        }
+      },
+      {
+        "end": true,
+        "name": "FatalCreation",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . |= .+ {\"status\": \"The ZTP map could not be created due to missing payloads.\"} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "OperationFailed",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . |= .+ {\"Status\": \"Operation could not succeed.\"} }"
+        }
+      },
+      {
+        "name": "MapCreated",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Failed",
+            "condition": "${ .status == 400 or .status == 404 or .status == 500 }",
+            "transition": {
+              "nextState": "JobTerminated"
+            }
+          },
+          {
+            "name": "Created",
+            "condition": "${ .status == 201 or .status == 204 }",
+            "transition": {
+              "nextState": "PollPlan"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "input": "${ . }",
+          "output": "${ . }"
+        },
+        "defaultCondition": {
+          "end": true
+        }
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "JobTerminated",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . | ((select(.status == 201 or .status == 204 )) |= .+ {\"MapCreatedStatus\": \"true\"} ) | ((select(.status == 400 or .status == 404 )) |= .+ {\"MapCreatedStatus\": \"false\"} ) | del(.status) }"
+        }
+      },
+      {
+        "name": "SleepAndPullStatus",
+        "type": "sleep",
+        "duration": "PT15S",
+        "transition": "PollPlan"
+      },
+      {
+        "name": "CheckIfStatusReached",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if plan status is still not-reached status",
+            "condition": "${ .PlanStatusResult == \"not-reached\"}",
+            "transition": "SleepAndPullStatus"
+          },
+          {
+            "name": "Check if plan status is reached or failed",
+            "condition": "${ .PlanStatusResult == \"reached\" or .PlanStatusResult == \"failed\" }",
+            "transition": "JobTerminated"
+          }
+        ],
+        "defaultCondition": {
+          "end": true
+        }
+      },
+      {
+        "name": "PollPlan",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "Poll-status",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfGet",
+              "arguments": {
+                "input": {
+                  "data": null,
+                  "path": "restconf/data/cisco-ztp:ztp/map-plan=${ .ztp.map.id }/plan/component=self,self/state=ready/status"
+                },
+                "config": {
+                  "resourceId": "${ .nsoInstance }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then .data.\"cisco-ztp:status\" else null end }",
+              "toStateData": "${ .PlanStatusResult }"
+            }
+          }
+        ],
+        "transition": {
+          "nextState": "CheckIfStatusReached"
+        },
+        "stateDataFilter": {
+          "input": "${ . }",
+          "output": "${ . }"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT5S",
+        "multiplier": 1.1,
+        "maxAttempts": 3
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfPut",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.v1.0.2.restconf.Put"
+      },
+      {
+        "name": "NSO.RestconfGet",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.v1.0.2.restconf.Get"
+      }
+    ],
+    "description": "The workflow creates a ZTP map service and waits for the completion.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "app:Device Onboard",
+    "noExport",
+    "vendor:Cisco Systems",
+    "default"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "06fb5a15c0d0a4697d2a4e4df6e36856c090f6bf1ba252819597910b7aa0bf9f"
+}

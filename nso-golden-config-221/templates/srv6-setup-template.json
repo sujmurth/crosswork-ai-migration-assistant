@@ -1,0 +1,14 @@
+{
+  "name": "srv6-setup-template",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\n{# Phase 2 (deck steps 6a/6b): SRv6 locators TOP/MAIN/BOTTOM/LATENCY + ISISv6 SRv6 #}\n{% set device_id = device.name.lstrip('node-') %}\nsegment-routing\n srv6\n  locators\n   locator TOP\n    micro-segment behavior unode psp-usd\n    prefix fcbb:2:{{ device_id }}::/48\n    algorithm 129\n    exit\n   locator MAIN\n    micro-segment behavior unode psp-usd\n    prefix fcbb:0:{{ device_id }}::/48\n    exit\n   locator BOTTOM\n    micro-segment behavior unode psp-usd\n    prefix fcbb:3:{{ device_id }}::/48\n    algorithm 130\n    exit\n   locator LATENCY\n    micro-segment behavior unode psp-usd\n    prefix fcbb:1:{{ device_id }}::/48\n    algorithm 128\n    exit\n   exit\n  exit\n exit\n\nrouter isis 1\n address-family ipv6 unicast\n  segment-routing srv6\n   locator TOP\n   exit\n   locator MAIN\n   exit\n   locator BOTTOM\n   exit\n   locator LATENCY\n   exit\n  exit\n exit\nexit\n"
+    }
+  ]
+}

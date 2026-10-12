@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Crosswork Migration to SRv6</title>
+<link rel="stylesheet" href="/cnc/magnetic-tokens.css" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<!-- ===== CNC top bar ===== -->
+<header class="cnc-top">
+  <div class="cnc-top-left">
+    <img class="cisco-logo" src="/cnc/cisco-logo.svg" alt="Cisco" />
+    <span class="cnc-divider"></span>
+    <span class="cnc-title">Crosswork Migration to SRv6</span>
+  </div>
+  <div class="cnc-top-right">
+    <span id="envbadge" class="cnc-env">connecting…</span>
+    <span class="ti">&#9788;</span>
+    <span class="ti">&#8599;</span>
+    <span class="ti">?</span>
+    <span class="ti avatar">&#9679;</span>
+  </div>
+</header>
+
+<div class="cnc-shell">
+  <!-- ===== left nav rail ===== -->
+  <nav class="cnc-nav">
+    <a class="nav-item active" data-scroll="sec-start"><i>&#9636;</i><span>SRv6<br/>Migration</span></a>
+  </nav>
+
+  <!-- ===== content ===== -->
+  <div class="cnc-main">
+    <div class="page-head">
+      <h1>SRv6 Migration</h1>
+    </div>
+
+    <!-- Start migration -->
+    <section class="card" id="sec-start">
+      <h2>Start Migration</h2>
+      <div class="phases" id="phases">
+        <div class="phase" data-p="0">Baseline</div>
+        <div class="phase" data-p="1">Enable IPv6</div>
+        <div class="phase" data-p="2">SRv6 Locators</div>
+        <div class="phase" data-p="3">RRv6 Peers</div>
+        <div class="phase" data-p="4">LocPref 50</div>
+        <div class="phase" data-p="5">L3VPN &rarr; SRv6</div>
+        <div class="phase" data-p="6">L2VPN &rarr; SRv6</div>
+        <div class="phase" data-p="7">Cutover 150</div>
+        <div class="phase" data-p="8">Remove MPLS</div>
+      </div>
+      <div id="migBanner" class="migbanner hidden"></div>
+      <p class="hint">Each phase runs <b>pre-check &rarr; action &rarr; post-check &rarr; gate &rarr; Webex approval</b>.
+        Enter your CNC connection &mdash; the backend performs the CAS login and holds the token (credentials are not stored).</p>
+      <div class="conn">
+        <label>CNC IP <input id="cncHost" placeholder="198.18.134.221"/></label>
+        <label>Port <input id="cncPort" style="width:78px" placeholder="30603"/></label>
+        <label>Username <input id="cncUser" placeholder="admin"/></label>
+        <label>Password <input id="cncPass" type="password" placeholder="••••••••" autocomplete="off"/></label>
+        <button id="btnLogin" class="ghost">Connect</button>
+      </div>
+      <div class="conn vpn">
+        <label>L3VPN to migrate <input id="l3vpn" placeholder="vpn-101"/></label>
+        <label>L2VPN (EVPN-VPWS) to migrate <input id="l2vpn" placeholder="vpn-129"/></label>
+        <label>SRv6 locator <input id="srv6loc" placeholder="MAIN"/></label>
+        <label>RRv6 IP (pce-12 Lo2) <input id="rrv6ip" placeholder="2011::12"/></label>
+      </div>
+      <div class="conn wbx">
+        <label>Webex Space <input id="wbxSpace" placeholder="Crosswork-TME-SRv6-Migration"/></label>
+        <label>Webex Room ID <input id="wbxRoom" placeholder="Y2lzY29zcGFyazovL3VzL1JPT00v…"/></label>
+        <label>Webex Bot Token <input id="wbxToken" type="password" placeholder="bot access token" autocomplete="off"/></label>
+        <button id="btnCheckRoom" class="ghost">Check Room</button>
+        <button id="btnWebex" class="ghost">Test Webex</button>
+        <button id="btnRelayStart" class="ghost">Start Approval Relay</button>
+        <button id="btnRelayStop" class="ghost">Stop Relay</button>
+      </div>
+      <p class="hint">Webex feeds the workflow's <code>webexNotifyMigration</code> / <code>webexApprovalGate</code> as
+        <code>WEBEX_ROOM_ID</code> + <code>WEBEX_ACCESS_TOKEN</code>. The bot must be a <b>member of the space</b>.
+        <b>Check Room</b> validates the token/room &amp; membership (no post); <b>Test Webex</b> also posts a test message.</p>
+      <p class="hint"><b>Approval Relay</b> watches the room and forwards decision replies
+        (<code>proceed</code> / <code>stop</code> / &hellip;) to CWM as <code>webex-approval</code> events, releasing
+        each <code>webexApprovalGate</code>. Requires a CNC login + Webex token + Room ID. Reply <code>proceed</code>
+        in Webex to advance a paused phase.</p>
+      <pre id="webexOut" class="out"></pre>
+      <pre id="relayOut" class="out"></pre>
+      <div class="row">
+        <span id="loginState" class="loginstate">&#9679; not connected</span>
+        <button id="btnStart" class="primary" disabled>&#9654; Start SRv6-Migration-MOP</button>
+      </div>
+      <pre id="startOut" class="out"></pre>
+    </section>
+
+    <!-- L3VPN / L2VPN migration status -->
+    <section class="card" id="sec-status">
+      <h2>Migration Status <span class="tag">L3VPN &amp; L2VPN</span></h2>
+      <p class="hint">Live status of the two services in scope. <b>Run pre/post checks</b> runs the read-only
+        <code>show</code> commands via <b>CNC &rarr; NSO live-status</b> (<code>/crosswork/proxy/nso/restconf</code>, needs CNC login) and
+        rolls up each service to <b>MPLS baseline</b> &rarr; <b>SRv6 migrated</b> &mdash; and updates the phase bar above.
+        <b>Add pre/post checks to workflow</b> seeds these into the workflow's check registry so they run at the phase gates.</p>
+      <div class="row">
+        <button id="btnStatus" class="primary">Run pre/post checks</button>
+        <button id="btnSeed" class="ghost">Add pre/post checks to workflow</button>
+      </div>
+      <div id="vpnStatus" class="vpnstat">loading…</div>
+      <pre id="statusOut" class="out"></pre>
+    </section>
+
+    <!-- NL check authoring -->
+    <section class="card" id="sec-checks">
+      <h2>Author a Pre/Post Check <span class="tag">natural language</span></h2>
+      <p class="hint">Type <b>which device to check, the <code>show</code> command to run, and what output counts as a pass</b> &mdash;
+        then assign it to a phase as a <b>pre-</b> or <b>post-check</b>.
+        <b>Parse</b> converts your sentence into a structured check &middot;
+        <b>Dry-run</b> runs the command live on the device now and shows pass/fail (read-only, no config change) &middot;
+        <b>Save</b> adds it to this portal's check registry, which the migration engine evaluates at that phase's gate.
+        This authors migration checks &mdash; it does <b>not</b> modify the CWM workflow.</p>
+      <label class="nl-label">Describe the check to include</label>
+      <textarea id="nl" rows="2" placeholder="e.g. On node-2 run 'show isis adjacency' and pass if the output contains 'Up'. Add it as a pre-check to phase 2."></textarea>
+      <div class="row">
+        <button id="btnParse" class="ghost">Parse</button>
+        <button id="btnDry" class="primary" disabled>Dry-run on device</button>
+        <button id="btnSave" class="ok" disabled>Save to registry</button>
+      </div>
+      <div id="checkCard" class="hidden">
+        <div class="grid">
+          <label>Name <input id="c_name"/></label>
+          <label>Phase <input id="c_phase" style="width:70px"/></label>
+          <label>Type <select id="c_type"><option>pre</option><option>post</option></select></label>
+          <label>Node <input id="c_node"/></label>
+          <label>NED exec <input id="c_ned"/></label>
+          <label>Match <select id="c_match"><option>contains</option><option>regex</option></select></label>
+          <label>On fail <select id="c_onfail"><option>halt</option><option>rollback</option><option>warn</option></select></label>
+          <label class="wide">Command <input id="c_cmd"/></label>
+          <label class="wide">Expect <input id="c_expect"/></label>
+        </div>
+        <div id="warns" class="warns"></div>
+      </div>
+      <pre id="dryOut" class="out"></pre>
+      <div class="row wf-row">
+        <label class="nl-label" style="margin:0">Convert to a workflow step</label>
+        <label class="inline">Target workflow
+          <input id="wfName" value="SRv6-Migration-MOP" style="min-width:210px"/></label>
+        <button id="btnToWf" class="ghost" disabled>Convert to workflow step</button>
+      </div>
+      <p class="hint" style="margin-top:4px">Generates the CWM <code>validateChecks</code> task JSON for this check so it runs
+        <b>inside the migration workflow</b> at its phase gate. When you're <b>connected to CNC</b> it is added to the live
+        workflow automatically; otherwise it just previews the JSON.</p>
+      <pre id="wfOut" class="out"></pre>
+    </section>
+
+    <!-- NL config-action authoring -> golden template -->
+    <section class="card" id="sec-action">
+      <h2>Author a Config Action &rarr; Golden Template <span class="tag warn">changes config</span></h2>
+      <p class="hint">Describe a <b>config change</b> and paste the device CLI in a <code>```fenced block```</code> (or after
+        <code>config:</code>). The migration workflow &amp; golden config run on <b>CNC's embedded NSO</b> (resource <code>nso-dCloud</code>).
+        <b>Generate</b> previews the golden-config template &middot; <b>Add push step to workflow</b> adds the config-push step that
+        runs on the embedded NSO &middot; <b>Test-load to baseline NSO</b> loads the template into the local .29 NSO for a quick syntax check only.</p>
+      <label class="nl-label">Describe the config action to include</label>
+      <textarea id="na" rows="5" placeholder="On node-2 and node-8, phase 4, merge, name it ipv6-loopback. config:&#10;interface Loopback0&#10; ipv6 address 2010::{{id}}/128&#10; exit"></textarea>
+      <div class="row">
+        <button id="btnAParse" class="ghost">Parse</button>
+        <button id="btnAGen" class="primary" disabled>Generate template + push step</button>
+      </div>
+      <div id="actionCard" class="hidden">
+        <div class="grid">
+          <label>Template name <input id="a_name"/></label>
+          <label>Phase <input id="a_phase" style="width:70px"/></label>
+          <label>Mode <select id="a_mode"><option>merge</option><option>replace</option></select></label>
+          <label>NSO resource <input id="a_resource" value="nso-dCloud"/></label>
+          <label class="wide">Target devices (comma-sep) <input id="a_nodes"/></label>
+          <label class="wide">Config (native CLI / Jinja) <textarea id="a_config" rows="4"></textarea></label>
+        </div>
+        <div id="aWarns" class="warns"></div>
+      </div>
+      <div class="row wf-row">
+        <label class="inline">Target workflow
+          <input id="aWfName" value="SRv6-Migration-MOP" style="min-width:210px"/></label>
+        <button id="btnAToWf" class="ghost" disabled>Add push step to workflow</button>
+        <button id="btnACreate" class="ghost" disabled>Test-load to baseline NSO (.29)</button>
+      </div>
+      <pre id="aOut" class="out"></pre>
+    </section>
+
+    <!-- Registry -->
+    <section class="card" id="sec-registry">
+      <h2>Saved Checks</h2>
+      <div id="registry" class="reg">none yet</div>
+    </section>
+  </div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

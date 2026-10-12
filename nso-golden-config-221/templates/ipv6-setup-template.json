@@ -1,0 +1,14 @@
+{
+  "name": "ipv6-setup-template",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\n{# Phase 1 (deck steps 4a/4b/4c): enable IPv6 on core links + Loopback0, add ISISv6 AF (single-topology) + advertise Loopback0 in ISISv6 #}\n{% for item in device.config.router.isis.tag['1'].interface %}\n  {% if item.name.startswith('Gi') %}\n    interface {{ item.name }}\n    ipv6 enable\n    exit\n  {% elif item.name.startswith('Loopback0') %}\n    {% set device_id = device.name.lstrip('node-') %}\n    interface {{ item.name }}\n    ipv6 address 2010::{{ device_id }}/128\n    exit\n  {% endif %}\n{% endfor %}\n{% for item in device.config.router.isis.tag['1'].interface %}\n  {% if item.name.startswith('Loopback0') %}\n    router isis 1\n    address-family ipv6 unicast\n    single-topology\n    router-id Loopback 0\n    exit\n    router isis 1\n    interface {{ item.name }}\n    address-family ipv6 unicast\n    exit\n  {% elif item.name.startswith('Gi') %}\n    router isis 1\n    interface {{ item.name }}\n    point-to-point\n    address-family ipv6 unicast\n    exit\n  {% endif %}\n{% endfor %}\n"
+    }
+  ]
+}

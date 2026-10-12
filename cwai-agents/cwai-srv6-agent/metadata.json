@@ -1,0 +1,93 @@
+{
+  "name": "srv6-migration-agent",
+  "full_name": "SRv6 Migration Agent",
+  "description": "Assess and migrate networks from MPLS/LDP to SRv6 (and Cisco 8000 edge-fabric EVPN) using MCP tools, with dry-run and human-approved change-impacting steps.",
+  "image": "srv6-migration-agent",
+  "version": "1.0.0",
+  "source": "Cisco CWAI",
+  "tags": [
+    "srv6",
+    "migration",
+    "mcp",
+    "tools",
+    "network",
+    "crosswork",
+    "srv6-migration-agent"
+  ],
+  "allowed_roles": [
+    "admin",
+    "operator"
+  ],
+  "capabilities": [
+    "llm-proxy",
+    "mcp-tools"
+  ],
+  "metadata": {
+    "cpu_limit": "1000m",
+    "cpu_request": "500m",
+    "storage_size": "100Mi",
+    "max_runtimes": 1,
+    "memory_limit": "2Gi",
+    "memory_request": "1Gi",
+    "max_instances_in_runtime": 1,
+    "suggestion": "I want to run an MPLS to SRv6 migration"
+  },
+  "settings": {
+    "temperature": 0.0,
+    "max_iterations": 20,
+    "approval_required_tools": ["enable_rrv6", "cutover", "remove_mpls", "apply_golden_config", "start_cwm_job"]
+  },
+  "schemas": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The user prompt that may trigger MCP tool calls (e.g. 'assess node-2 for SRv6 readiness')."
+        }
+      },
+      "required": ["prompt"],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "response": {
+          "type": "string",
+          "description": "The final LLM response after tool execution."
+        },
+        "tools_called": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of MCP tools that were called."
+        }
+      },
+      "required": ["response"],
+      "additionalProperties": false
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Optional LLM model override."
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Sampling temperature (0.0-2.0)."
+        },
+        "max_iterations": {
+          "type": "integer",
+          "description": "Maximum ReAct tool-calling loop iterations before stopping.",
+          "minimum": 1
+        },
+        "approval_required_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tool names that require operator approval (HITL) before execution."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

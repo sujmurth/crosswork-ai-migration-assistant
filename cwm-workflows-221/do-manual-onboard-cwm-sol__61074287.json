@@ -1,0 +1,467 @@
+{
+  "workflowId": "61074287-f48e-4ab0-84a8-ce3d669de2ee",
+  "createdAt": "2026-02-18T01:36:29.672115Z",
+  "updatedAt": "2026-06-29T21:45:16.771486Z",
+  "name": "do-manual-onboard-cwm-sol",
+  "version": "1.0.0",
+  "description": "Onboard device manually using NSO restconf calls",
+  "definition": {
+    "id": "do-manual-onboard-cwm-sol",
+    "name": "do-manual-onboard-cwm-sol",
+    "start": "check-mandatory-fields",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "TIMEOUT",
+        "name": "Http_Timeout",
+        "description": "NSO RESTCONF CALL TIMED OUT"
+      },
+      {
+        "code": "NSO_OPERATION_FAILED",
+        "name": "Operation_Error",
+        "description": "OPERATION ERROR"
+      },
+      {
+        "code": "NSO_INVALID_VALUE",
+        "name": "Invalid_Value",
+        "description": "INVALID VALUE"
+      },
+      {
+        "code": "NSO_MALFARMED_MESSAGE",
+        "name": "Malfarmed_Message",
+        "description": "MALFARMED MESSAGE"
+      },
+      {
+        "code": "NSO_UNKNOWN_ELEMENT",
+        "name": "Unknown_Element",
+        "description": "UNKNOWN ELEMENT"
+      },
+      {
+        "code": "NSO_BAD_ELEMENT",
+        "name": "Bad_Element",
+        "description": "BAD ELEMENT"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "NSO_ACCESS_DENIED",
+        "name": "Access_Denied",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "Entity_Not_Found",
+        "description": "ENTITY NOT FOUND"
+      },
+      {
+        "code": "HTTP_STATUS_409",
+        "name": "Entity_Found",
+        "description": "ENTITY FOUND"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Device_Http_Error",
+        "description": "DEVICE HTTP ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_502",
+        "name": "Device_Not_In_Sync",
+        "description": "DEVICE HTTP ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_NSO_Resource",
+        "description": "INVALID NSO RESOURCE ERROR"
+      },
+      {
+        "code": "NSO_DATA_MISSING",
+        "name": "Data_Missing",
+        "description": "DATA MISSING"
+      },
+      {
+        "code": "NSO_RESOURCE_DENIED",
+        "name": "Resource_Denied",
+        "description": "NSO RESOURCE DENIED"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-mandatory-fields",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (((. | keys | index( \"nsoInstance\" )) and (.nsoInstance | type == \"string\") and (.nsoInstance != \"\"))) | not  }",
+            "transition": "invalid-nso-instance"
+          },
+          {
+            "condition": "${ ((.ztp and .ztp.device and ((.ztp.device | keys | index( \"name\" )) and (.ztp.device.name | type == \"string\") and (.ztp.device.name != \"\")) and ((.ztp.device | keys | index( \"address\" )) and (.ztp.device.address | type == \"string\") and (.ztp.device.address != \"\")) and ((.ztp.device | keys | index( \"authGroup\" )) and (.ztp.device.authGroup | type == \"string\") and (.ztp.device.authGroup != \"\")) and ((.ztp.device | keys | index( \"deviceType\" )) and (.ztp.device.deviceType | type == \"string\") and (.ztp.device.deviceType != \"\")) and ((.ztp.device | keys | index( \"nedId\" )) and (.ztp.device.nedId | type == \"string\") and (.ztp.device.nedId != \"\")) and ((.ztp.device | keys | index( \"port\" )) and (.ztp.device.port | type == \"number\") and (.ztp.device.port != \"\"))) | not ) }",
+            "transition": "invalid-missing-mandatory-fields"
+          },
+          {
+            "condition": "${ .ztp and .ztp.device and (if (.ztp.device | keys | index( \"adminState\" )) then (((.ztp.device.adminState | type == \"string\") and (((.ztp.device as $device | [\"locked\", \"unlocked\", \"southbound-locked\", \"config-locked\", \"call-home\"] | index($device.adminState)) != null))) | not) else false end) }",
+            "transition": "invalid-adminstate"
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ (if .ztp.device.adminState == \"locked\" then (del(.ztp.device.adminState) | .ztp.device.adminState = $CONST.ADMIN_STATE.LOCKED) elif .ztp.device.adminState == \"unlocked\" then (del(.ztp.device.adminState) | .ztp.device.adminState = $CONST.ADMIN_STATE.UNLOCKED)  elif .ztp.device.adminState == \"southbound-locked\" then (del(.ztp.device.adminState) | .ztp.device.adminState = $CONST.ADMIN_STATE.SOUTHBOUND_LOCKED)  elif .ztp.device.adminState == \"config-locked\" then (del(.ztp.device.adminState) | .ztp.device.adminState = $CONST.ADMIN_STATE.CONFIG_LOCKED)  elif .ztp.device.adminState == \"call-home\" then (del(.ztp.device.adminState) | .ztp.device.adminState = $CONST.ADMIN_STATE.CALL_HOME) else (del(.ztp.device.adminState) | .ztp.device.adminState = 1) end) | .ztp.device.deviceName = .ztp.device.name | del(.ztp.device.name) }"
+        },
+        "defaultCondition": {
+          "transition": "onboardDevice"
+        }
+      },
+      {
+        "name": "onboardDevice",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "executeOnboardDevice",
+            "functionRef": {
+              "refName": "nso-adapter-onboard-device",
+              "arguments": {
+                "input": "${ .ztp.device }",
+                "config": {
+                  "resourceId": "${ .nsoInstance }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .createResponse }"
+            }
+          },
+          {
+            "name": "executeFetchSSH",
+            "sleep": {
+              "after": "PT15S"
+            },
+            "condition": "${.createResponse.success == true}",
+            "functionRef": {
+              "refName": "nso-adapter-fetch-ssh",
+              "arguments": {
+                "input": "${ .ztp.device }",
+                "config": {
+                  "resourceId": "${ .nsoInstance }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .fetchResponse }"
+            }
+          },
+          {
+            "name": "executeConnect",
+            "condition": "${(.fetchResponse and (.fetchResponse.success == true) and (.fetchResponse.data.\"tailf-ncs:output\".result == \"unchanged\" or .fetchResponse.data.\"tailf-ncs:output\".result == \"updated\"))}",
+            "functionRef": {
+              "refName": "nso-adapter-connect",
+              "arguments": {
+                "input": "${ .ztp.device }",
+                "config": {
+                  "resourceId": "${ .nsoInstance }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .connectOutput }"
+            }
+          },
+          {
+            "name": "executeSyncFrom",
+            "condition": "${(.connectOutput and .connectOutput.data and (.connectOutput.data.\"tailf-ncs:output\".result == true))}",
+            "functionRef": {
+              "refName": "nso-adapter-syncfrom",
+              "arguments": {
+                "input": "${ .ztp.device }",
+                "config": {
+                  "resourceId": "${ .nsoInstance }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "toStateData": "${ .syncFromOutput }"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "Operation_Error",
+            "transition": "nso-operation-error"
+          },
+          {
+            "errorRef": "Invalid_Value",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Malfarmed_Message",
+            "transition": "nso-malfarmed-message"
+          },
+          {
+            "errorRef": "Unknown_Element",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Bad_Element",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Data_Missing",
+            "transition": "nso-missing-data"
+          },
+          {
+            "errorRef": "Http_Timeout",
+            "transition": "nso-timeout"
+          },
+          {
+            "errorRef": "Access_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Resource_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Entity_Not_Found",
+            "transition": "missing-data"
+          },
+          {
+            "errorRef": "Entity_Found",
+            "transition": "entry-found"
+          },
+          {
+            "errorRef": "Device_Http_Error",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Device_Not_In_Sync",
+            "transition": "abnormal-device"
+          },
+          {
+            "errorRef": "Invalid_NSO_Resource",
+            "transition": "resource-not-found"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "transition": "return-result",
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      },
+      {
+        "name": "entry-found",
+        "type": "operation",
+        "actions": [],
+        "transition": "return-result",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Device with same name already present in NSO.\"})}"
+        }
+      },
+      {
+        "name": "nso-operation-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Operation Error, failed while executing activity on NSO resource.\"})}"
+        }
+      },
+      {
+        "name": "nso-malfarmed-message",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Receive malfarmed message error from NSO resource.\"})}"
+        }
+      },
+      {
+        "name": "nso-missing-data",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Missing or unknown data error from NSO resource.\"})}"
+        }
+      },
+      {
+        "name": "nso-timeout",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Operation Error, NSO operation timed out.\"})}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Failed while executing activity on NSO resource.\"})}"
+        }
+      },
+      {
+        "name": "resource-not-found",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Invalid NSO resource. Please check if the resource present in system.\"})}"
+        }
+      },
+      {
+        "name": "unauthorized-access",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Enable to execute command or action on NSO due to missing  permissions/access.\"})}"
+        }
+      },
+      {
+        "name": "missing-data",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Required data is missing or invalid for onboarding device in NSO.\"})}"
+        }
+      },
+      {
+        "name": "abnormal-device",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Failed to execute command/action on device. This may be because device is not present or not in sync.\"})}"
+        }
+      },
+      {
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"error\", \"message\":\"Please check the input the request to NSO command/operation is not in correct format.\"})}"
+        }
+      },
+      {
+        "name": "invalid-nso-instance",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"failed\", \"message\":\"Invalid input. NSO instance undefined or invalid.\"})}"
+        }
+      },
+      {
+        "name": "invalid-adminstate",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"failed\", \"message\":\"Invalid admin state value. Allowed values locked, unlocked, southbound-locked, config-locked, call-home\"})}"
+        }
+      },
+      {
+        "name": "invalid-missing-mandatory-fields",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${({\"status\":\"failed\", \"message\":\"Invalid input. Missing mandatory fields or contains invalid values.\"})}"
+        }
+      },
+      {
+        "name": "return-result",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ (if (.createResponse and (.createResponse.success == true)) then (if (.fetchResponse and (.fetchResponse.success == true) and (.fetchResponse.data.\"tailf-ncs:output\".result == \"unchanged\" or .fetchResponse.data.\"tailf-ncs:output\".result == \"updated\")) then ( if (.connectOutput and (.connectOutput.success == true) and (.connectOutput.data.\"tailf-ncs:output\".result == true)) then ( if (.syncFromOutput and (.syncFromOutput.success == true) and (.syncFromOutput.data.\"tailf-ncs:output\".result == true)) then {\"status\":\"Success\", \"message\":\"The device successfully onboarded and Fetch SSH keys, Connect and SycnFrom actions executed successfully\"} else {\"status\":\"Success\", \"message\":\"The device successfully onboarded and Fetch SSH Key and Connect action executed successfully, but SyncFrom action failed\"} end ) else {\"status\":\"Success\", \"message\":\"The device successfully onboarded and Fetch SSH Key action executed successfully, but Connect action failed resulting SyncFrom to be skipped\"} end ) else {\"status\":\"Success\", \"message\":\"The device successfully onboarded, but fetch SSH key action failed and Connect and Syncfrom actions skipped\"} end ) else {\"status\":\"failed\", \"message\":\"Failed to onboard the device, unhandled exception occurred.\"} end ) }"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "1.0.0",
+    "constants": {
+      "ADMIN_STATE": {
+        "LOCKED": 0,
+        "UNLOCKED": 1,
+        "CALL_HOME": 4,
+        "CONFIG_LOCKED": 3,
+        "SOUTHBOUND_LOCKED": 2
+      }
+    },
+    "functions": [
+      {
+        "name": "nso-adapter-onboard-device",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.v1.0.2.device.Create"
+      },
+      {
+        "name": "nso-adapter-fetch-ssh",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.v1.0.2.device.FetchSshHostKeys"
+      },
+      {
+        "name": "nso-adapter-connect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.v1.0.2.device.Connect"
+      },
+      {
+        "name": "nso-adapter-syncfrom",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.v1.0.2.device.SyncFrom"
+      }
+    ],
+    "description": "Onboard device manually using NSO restconf calls",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport",
+    "app:Device Onboard",
+    "vendor:Cisco Systems",
+    "default"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "e31be0610b3a47ecfbb65351bd55f5952cb9cd549e0301d16e50a70e4f84cda6"
+}

@@ -1,0 +1,591 @@
+{
+  "workflowId": "c801da5b-2867-4e11-990d-7bf71f63dc2a",
+  "createdAt": "2026-02-18T01:36:29.23162Z",
+  "updatedAt": "2026-06-29T21:45:15.294145Z",
+  "name": "installed-summary-xr-cwm-sol",
+  "version": "2.1.0",
+  "description": "Verifies if packages (active vs active and commit vs commit) are same pre and post upgrade. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "installed-summary-xr-cwm-sol",
+    "name": "installed-summary-xr-cwm-sol",
+    "start": "check-device-family",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-lintd",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") }",
+            "transition": "inject-template-and-expressions-lintd"
+          },
+          {
+            "name": "check-exr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\")}",
+            "transition": "inject-template-and-expressions-exr"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "data": {
+          "commands": [
+            {
+              "command": "show install active summary",
+              "cmdOrder": 1,
+              "template": "Value Required Package (\\S+)\nValue Version (\\S+)\n\nStart\n  ^-{10,}\\s+\\-{10,} -> Packages\n\nPackages\n  ^${Package}\\s+${Version} -> Record"
+            },
+            {
+              "command": "show install committed summary",
+              "cmdOrder": 2,
+              "template": "Value Required Package (\\S+)\nValue Version (\\S+)\n\nStart\n  ^-{10,}\\s+\\-{10,} -> Packages\n\nPackages\n  ^${Package}\\s+${Version} -> Record"
+            }
+          ],
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Installed summary check failed due to package inconsistency.",
+              "condition": "(.[0] | length > 0) and (.[1] | length > 0)"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-lintd",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for installed summary check for XR 8k devices"
+            }
+          ]
+        },
+        "transition": "check-xr-installed-summary"
+      },
+      {
+        "data": {
+          "commands": [
+            {
+              "command": "show install active summary",
+              "cmdOrder": 1,
+              "template": "Value Required Package ((ncs|asr|xr)\\S+)\n\nStart\n  ^\\s+${Package} -> Record"
+            },
+            {
+              "command": "show install committed summary",
+              "cmdOrder": 2,
+              "template": "Value Required Package ((ncs|asr|xr)\\S+)\n\nStart\n  ^\\s+${Package} -> Record"
+            }
+          ],
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Installed summary check failed due to package inconsistency.",
+              "condition": "(.[0] | length > 0) and (.[1] | length > 0)"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-exr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for installed summary check for XR 5k devices"
+            }
+          ]
+        },
+        "transition": "check-xr-installed-summary"
+      },
+      {
+        "name": "check-xr-installed-summary",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-multi-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"commands\": .commands, \"expressions\": .expressions })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling rakutil executor for multiple commands"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in active or committed packages",
+            "condition": "${ ((.rakutilExecutorData.stash.output[0]|sort) != (.stash.activated|sort) or (.rakutilExecutorData.stash.output[1]|sort) != (.stash.committed|sort)) }",
+            "transition": "get-missing-active-packages"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "pkg-summary-post-check-passed"
+        }
+      },
+      {
+        "name": "get-missing-active-packages",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting missing active packages."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-added-active-packages",
+        "stateDataFilter": {
+          "output": "${((.warnings) += [[.stash.activated[].Package] - [.rakutilExecutorData.stash.output[0][].Package] | if . | length > 0 then \"Missing active packages: \" + (. | join(\", \")) else [] end])}"
+        }
+      },
+      {
+        "name": "get-added-active-packages",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting added active packages."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-missing-committed-packages",
+        "stateDataFilter": {
+          "output": "${((.warnings) += [[.rakutilExecutorData.stash.output[0][].Package] - [.stash.activated[].Package] | if . | length > 0 then \"Added active packages: \" + (. | join(\", \")) else [] end])}"
+        }
+      },
+      {
+        "name": "get-missing-committed-packages",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting missing committed packages."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-added-committed-packages",
+        "stateDataFilter": {
+          "output": "${((.warnings) += [(if .rakutilExecutorData.stash.output | length > 1 then [.stash.committed[].Package] - [.rakutilExecutorData.stash.output[1][].Package] else [.stash.committed[].Package] - [.rakutilExecutorData.stash.output[0][].Package] end) | if . | length > 0 then \"Missing committed packages: \" + (. | join(\", \")) else [] end])}"
+        }
+      },
+      {
+        "name": "get-added-committed-packages",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting added committed packages."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "form-warnings",
+        "stateDataFilter": {
+          "output": "${((.warnings) += [(if .rakutilExecutorData.stash.output | length > 1 then [.rakutilExecutorData.stash.output[1][].Package] - [.stash.committed[].Package] else [.rakutilExecutorData.stash.output[0][].Package] - [.stash.committed[].Package] end) | if . | length > 0 then \"Added committed packages: \" + (. | join(\", \")) else [] end])}"
+        }
+      },
+      {
+        "name": "form-warnings",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Installed summary check completed with warnings."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-stash",
+        "stateDataFilter": {
+          "output": "${{status:\"warning\", message: (\"Installed summary check completed with warnings. \" + (.warnings | map(select(. != [])) | join (\", \"))), stash: (if .rakutilExecutorData.stash.output | length == 1 then [.rakutilExecutorData.stash.output[0], .rakutilExecutorData.stash.output[0]] else .rakutilExecutorData.stash.output end)}}"
+        }
+      },
+      {
+        "name": "pkg-summary-post-check-passed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Installed summary check completed successfully. No changes in active or committed packages."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-stash",
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Installed summary check completed successfully. No changes in active or committed packages.\", stash: (if .rakutilExecutorData.stash.output | length == 1 then [.rakutilExecutorData.stash.output[0], .rakutilExecutorData.stash.output[0]] else .rakutilExecutorData.stash.output end)}}"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Installed summary check completed successfully. Stash would be generated."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-stash",
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Installed summary check completed successfully. Stash would be generated.\", stash: (if .rakutilExecutorData.stash.output | length == 1 then [.rakutilExecutorData.stash.output[0], .rakutilExecutorData.stash.output[0]] else .rakutilExecutorData.stash.output end) }}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-stash",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${.stash = {activated: [.stash[0][] | select(.Package != \"Mandatory\" and .Package != \"Active\" and (.Package | contains(\"-------\") | not))], committed: [.stash[1][] | select(.Package != \"Mandatory\" and .Package != \"Committed\" and (.Package | contains(\"-------\") | not))]}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Installed summary check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Installed summary check failed due to package inconsistency\" end)}}"
+        }
+      },
+      {
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Installed summary check exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Exited abnormally.\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": {
+        "activated": [
+          {
+            "Package": "xr-8000-l2mcast",
+            "Version": "7.8.2v1.0.0-1"
+          },
+          {
+            "Package": "xr-8000-mcast",
+            "Version": "7.8.2v1.0.0-1"
+          }
+        ],
+        "committed": [
+          {
+            "Package": "xr-8000-l2mcast",
+            "Version": "7.8.2v1.0.0-1"
+          },
+          {
+            "Package": "xr-8000-mcast",
+            "Version": "7.8.2v1.0.0-1"
+          }
+        ]
+      }
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Verifies if packages (active vs active and commit vs commit) are same pre and post upgrade. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "installedSummaryCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "78953a109ec4ea70f6175f9f4af7948ce67bb3edcbaa9b605de3889e4cc98492"
+}

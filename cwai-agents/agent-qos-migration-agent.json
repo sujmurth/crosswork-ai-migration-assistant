@@ -1,0 +1,47 @@
+{
+  "name": "qos-migration-agent",
+  "full_name": "QoS Migration Agent",
+  "description": "Translate QoS configuration from ASR 900 (IOS-XE), NCS 540/55xx (IOS-XR) or ASR 9000 (IOS-XR) to Cisco 8000 IOS-XR using the config-translation skill, with per-section confidence and human-approved deployment-workflow generation.",
+  "tags": [
+    "cisco-8000",
+    "config-translation",
+    "iosxr",
+    "migration",
+    "qos",
+    "qos-migration-agent"
+  ],
+  "image": "apps/cisco-crosswork-ai/qos-migration-agent",
+  "image_tag": "sha256-1bc844f0758da801144a6cc379524ddc",
+  "version": "1.0.0",
+  "type": "CUSTOM",
+  "source": "Cisco CWAI",
+  "capabilities": [
+    "llm-proxy",
+    "mcp-tools"
+  ],
+  "metadata": {
+    "cpu_limit": "1000m",
+    "max_instances_in_runtime": 1,
+    "max_runtimes": 1,
+    "cpu_request": "500m",
+    "llm_models": [],
+    "memory_limit": "2Gi",
+    "memory_request": "1Gi",
+    "storage_size": "200Mi",
+    "suggestion": "I want to run a QoS migration to Cisco 8000"
+  },
+  "settings": {
+    "cnc_password": "",
+    "cnc_token": "",
+    "cnc_user": "admin",
+    "load_to_cnc": true,
+    "model": "cisco-gpt-5-nano",
+    "temperature": 0
+  },
+  "allowed_roles": [
+    "admin",
+    "operator"
+  ],
+  "status": "Active",
+  "created_at": "2026-09-23T18:12:57Z"
+}

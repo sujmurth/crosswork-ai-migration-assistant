@@ -1,0 +1,228 @@
+{
+  "workflowId": "43636632-923c-41e6-9c24-848eb260c9d9",
+  "createdAt": "2026-02-18T01:36:28.977085Z",
+  "updatedAt": "2026-06-29T21:45:13.753072Z",
+  "name": "actionexecutor-cwm-sol",
+  "version": "2.1.0",
+  "description": "Executes the distribute, activate or commit job and waits for job to get completed. This workflow calls the rakfu-nsoactivityexecutor workflow to start the action and then the rakfu-monitorjob to monitor the progress of the activity. Failure condition: If the status returned from the NSO adapter is not success then this workflow also returns a failure.",
+  "definition": {
+    "id": "actionexecutor-cwm-sol",
+    "name": "actionexecutor-cwm-sol",
+    "start": "run-action",
+    "states": [
+      {
+        "name": "run-action",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": " ${ .activity.resourceId=.resourceId | .activity.method=\"post\" | .activity.input.device=.device | .activity.path=(\"restconf/operations/fleet-upgrade/\"+.activity.type)}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling nsoactivityexecutor to run the action"
+            }
+          ]
+        },
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "verify-action-result"
+      },
+      {
+        "name": "verify-action-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${(.activityOutput.status==\"success\") and (.activityOutput.data.\"fleet-upgrade:output\".result ) }",
+            "transition": "monitor-job"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "action-failed"
+        }
+      },
+      {
+        "name": "monitor-job",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "monitor-job-details",
+        "stateDataFilter": {
+          "output": "${ if (.activityOutput.data) then (.\"job-id\"=.activityOutput.data.\"fleet-upgrade:output\".\"job-id\") end | .tmp=.activity | del(.activity) | .activity.input.device=.device | if .tmp.extra then .activity.extra =.tmp.extra end | .UseEMSResource=false | del(.tmp) }"
+        }
+      },
+      {
+        "name": "monitor-job-details",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "monitorjob-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "fromStateData": " ${.}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling monitorjob workflow"
+            }
+          ]
+        },
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "verify-job-result"
+      },
+      {
+        "name": "verify-job-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${.status==\"success\"}",
+            "transition": "completed"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "failed"
+        }
+      },
+      {
+        "name": "completed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Activity completed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ .message=\"completed\" }"
+        }
+      },
+      {
+        "name": "action-failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Action failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "failed",
+        "stateDataFilter": {
+          "output": "${ .message=.activityOutput.message | if (.message | not) then .message=.activityOutput.data.\"fleet-upgrade:output\".message end | if (.message | not) then .message=\"action failed.\" end }"
+        }
+      },
+      {
+        "name": "failed",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ .status=\"failed\" }"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT30M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Executes the distribute, activate or commit job and waits for job to get completed. This workflow calls the rakfu-nsoactivityexecutor workflow to start the action and then the rakfu-monitorjob to monitor the progress of the activity. Failure condition: If the status returned from the NSO adapter is not success then this workflow also returns a failure.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "cf34a281dc0420672764656a5996f8cd41d452176a5892919b8211cb3edd68e6"
+}

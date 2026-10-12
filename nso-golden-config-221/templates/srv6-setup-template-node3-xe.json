@@ -1,0 +1,14 @@
+{
+  "name": "srv6-setup-template-node3-xe",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\n{# Phase 2 (SRv6 Locators) for node-3 -- IOS-XE 17.18. Validated against node-3 via NSO     #}\n{# commit dry-run. IOS-XE specifics (differ from the IOS-XR srv6-setup-template):           #}\n{#   * uSID format = 'format usid-f3216'   (XR uses 'micro-segment behavior unode psp-usd').#}\n{#   * 'segment-routing srv6' is a single line (XR nests 'segment-routing' then 'srv6').    #}\n{#   * Locators are NAMED by flex-algo number (MAIN=default, 128/129/130) -- no 'algorithm' #}\n{#     keyword; flex-algos are defined under 'router isis / flex-algo N' as needed.         #}\n{#   * SRv6 locators auto-advertise into ISIS -- no 'segment-routing srv6 locator' block    #}\n{#     under the ISIS address-family (unlike IOS-XR).                                        #}\n{# Prefixes follow the fabric: MAIN=fcbb:0:3 (default), 128=fcbb:1:3 (LATENCY/delay),       #}\n{# 129=fcbb:2:3 (TOP), 130=fcbb:3:3 (BOTTOM).                                                #}\nsegment-routing srv6\n locators\n  locator MAIN\n   prefix fcbb:0:3::/48\n   format usid-f3216\n  locator 128\n   prefix fcbb:1:3::/48\n   format usid-f3216\n  locator 129\n   prefix fcbb:2:3::/48\n   format usid-f3216\n  locator 130\n   prefix fcbb:3:3::/48\n   format usid-f3216\n !\n!\n"
+    }
+  ]
+}

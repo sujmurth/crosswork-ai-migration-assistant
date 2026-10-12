@@ -1,0 +1,82 @@
+{
+  "name": "workflow-author-agent",
+  "full_name": "Workflow Author Agent",
+  "description": "Authors dry-run-validated CWM golden-config workflows from a natural-language request (push config to devices + optional show-command verification), then imports them to CWM. Control flow is a fixed, proven skeleton; only parameters are filled; every payload is golden-config dry-run validated before import.",
+  "image": "workflow-author-agent",
+  "version": "1.0.0",
+  "source": "Cisco CWAI",
+  "tags": [
+    "workflow",
+    "authoring",
+    "golden-config",
+    "cwm",
+    "automation",
+    "crosswork",
+    "workflow-author-agent"
+  ],
+  "allowed_roles": [
+    "admin",
+    "operator"
+  ],
+  "capabilities": [
+    "llm-proxy",
+    "mcp-tools"
+  ],
+  "metadata": {
+    "cpu_limit": "1000m",
+    "cpu_request": "500m",
+    "storage_size": "100Mi",
+    "max_runtimes": 1,
+    "memory_limit": "2Gi",
+    "memory_request": "1Gi",
+    "max_instances_in_runtime": 1,
+    "suggestion": "I want to author a CWM workflow"
+  },
+  "settings": {
+    "temperature": 0.0,
+    "max_iterations": 20,
+    "approval_required_tools": ["import_workflow", "apply_golden_config"]
+  },
+  "schemas": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "Natural-language or key=value workflow request, e.g. 'name=99.setSnmp devices=node-1,node-2 cli=\"snmp-server contact Demo\" check=\"node-1|show running-config snmp-server|Demo\"'."
+        }
+      },
+      "required": ["prompt"],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "response": {
+          "type": "string",
+          "description": "Authoring result (dry-run diff, import status, or staged definition)."
+        },
+        "status": {
+          "type": "string",
+          "description": "IMPORTED | STAGED | GATE_FAILED | CANCELLED | IMPORT_FAILED."
+        }
+      },
+      "required": ["response"],
+      "additionalProperties": false
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string", "description": "Optional LLM model override." },
+        "temperature": { "type": "number", "description": "Sampling temperature (0.0-2.0)." },
+        "max_iterations": { "type": "integer", "description": "Max loop iterations.", "minimum": 1 },
+        "approval_required_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tool names that require operator approval before execution."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

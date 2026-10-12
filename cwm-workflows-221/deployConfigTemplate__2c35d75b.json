@@ -1,0 +1,200 @@
+{
+  "workflowId": "2c35d75b-84a3-4e54-861b-a912ab364386",
+  "createdAt": "2026-10-06T15:27:50.635748Z",
+  "updatedAt": "2026-10-06T15:27:50.635748Z",
+  "name": "deployConfigTemplate",
+  "version": "1.0",
+  "description": "Deploy a CNC DLM config template (CLI transport) to a device and poll the job to a terminal state. Used by Phase 2 (enableSRv6) for IOS-XE node-3 to push the SRv6 flex-algo `algorithm` binding that the NSO cisco-ios NED drops. Input: { template_name, device_uuid, node_id, CNC_JWT }.",
+  "definition": {
+    "id": "deployConfigTemplate",
+    "name": "deployConfigTemplate",
+    "start": "deploy",
+    "states": [
+      {
+        "name": "deploy",
+        "type": "operation",
+        "actions": [
+          {
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "details": [
+                      {
+                        "version": 1,
+                        "variables": [
+                          {
+                            "name": "node_id",
+                            "value": "${ .node_id }"
+                          }
+                        ],
+                        "device_uuid": "GLOBAL"
+                      }
+                    ],
+                    "version": "1",
+                    "device_uuids": {
+                      "device_uuids": [
+                        "${ .device_uuid }"
+                      ]
+                    },
+                    "template_name": "${ .template_name }",
+                    "additional_params": {
+                      "nso_sync": false,
+                      "rollback_on_failure": true,
+                      "backup_before_deploy": false
+                    }
+                  },
+                  "path": "/crosswork/config/v1/templates/deploy-template",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer ${ .CNC_JWT }"
+                  }
+                },
+                "config": {
+                  "resourceId": "${ \"cncConfig\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ { jobId: .data.job_id, httpStatus: .status } }",
+              "toStateData": "${ .deployResult }"
+            }
+          }
+        ],
+        "transition": "waitBeforePoll",
+        "stateDataFilter": {
+          "output": "${ . + { jobId: .deployResult.jobId } }"
+        }
+      },
+      {
+        "name": "waitBeforePoll",
+        "type": "sleep",
+        "duration": "PT8S",
+        "transition": "pollJob"
+      },
+      {
+        "name": "pollJob",
+        "type": "operation",
+        "actions": [
+          {
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "name": "${ .jobId }",
+                    "last_run_status": [
+                      "NOT_STARTED",
+                      "IN_PROGRESS",
+                      "SUCCESS",
+                      "RUN_FAILED",
+                      "PARTIAL"
+                    ]
+                  },
+                  "path": "/crosswork/config/v1/templates/jobs/deployments/query",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer ${ .CNC_JWT }"
+                  }
+                },
+                "config": {
+                  "resourceId": "${ \"cncConfig\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ { runStatus: ((.data.jobs // [])[0].last_run_status // \"IN_PROGRESS\") } }",
+              "toStateData": "${ .poll }"
+            }
+          }
+        ],
+        "transition": "checkStatus",
+        "stateDataFilter": {
+          "output": "${ . + { runStatus: .poll.runStatus } }"
+        }
+      },
+      {
+        "name": "checkStatus",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .runStatus == \"SUCCESS\" }",
+            "transition": "deployDetail"
+          },
+          {
+            "condition": "${ .runStatus == \"RUN_FAILED\" or .runStatus == \"PARTIAL\" }",
+            "transition": "deployDetail"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "waitBeforePoll"
+        }
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "deployDetail",
+        "type": "operation",
+        "actions": [
+          {
+            "functionRef": {
+              "refName": "REST.Post",
+              "arguments": {
+                "input": {
+                  "data": {
+                    "status": [
+                      "SUCCESS",
+                      "FAILED",
+                      "PARTIAL",
+                      "IN_PROGRESS",
+                      "NOT_STARTED"
+                    ]
+                  },
+                  "path": "/crosswork/config/v1/templates/deploy-template/${ .jobId | @uri }/query",
+                  "header": {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer ${ .CNC_JWT }"
+                  }
+                },
+                "config": {
+                  "resourceId": "${ \"cncConfig\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ { perDevice: (.data.details // []) } }",
+              "toStateData": "${ .detail }"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ { template_name: .template_name, device_uuid: .device_uuid, jobId: .jobId, runStatus: .runStatus, perDevice: .detail.perDevice, verdict: (if .runStatus == \"SUCCESS\" then \"PASS\" else \"FAIL\" end) } }"
+        }
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "REST.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      }
+    ],
+    "description": "Deploy a CNC DLM config template (CLI transport) to a device and poll the job to a terminal state. Used by Phase 2 (enableSRv6) for IOS-XE node-3 to push the SRv6 flex-algo `algorithm` binding that the NSO cisco-ios NED drops. Input: { template_name, device_uuid, node_id, CNC_JWT }.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "SRv6-Migration",
+    "DLM"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "586b897c8d854c586698b6a0a4b4d8308577a16197c8b1793bc91f1f97b3c879"
+}

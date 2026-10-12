@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SRv6 Migration Assistant</title>
+<link rel="stylesheet" href="/cnc/magnetic-tokens.css" />
+<link rel="stylesheet" href="/assistant.css" />
+</head>
+<body>
+<!-- ===== top bar ===== -->
+<header class="asst-top">
+  <div class="asst-top-left">
+    <img class="cisco-logo" src="/cnc/cisco-logo.svg" alt="Cisco" onerror="this.style.display='none'"/>
+    <span class="asst-divider"></span>
+    <span class="asst-title">Crosswork Network Controller</span>
+  </div>
+  <div class="asst-top-right">
+    <span id="envbadge" class="asst-env">not connected</span>
+    <a class="asst-link" href="/index.html" title="Classic portal">Classic UI</a>
+  </div>
+</header>
+
+<div class="asst-shell">
+  <!-- ===== left thread rail ===== -->
+  <aside class="asst-rail">
+    <div class="asst-rail-head">
+      <span>Threads</span>
+      <button id="newThread" class="btn-newthread" title="New migration thread">&#9998; New thread</button>
+    </div>
+    <div id="threadList" class="thread-list"></div>
+  </aside>
+
+  <!-- ===== chat column ===== -->
+  <main class="asst-main">
+    <div id="phaseStrip" class="phase-strip hidden"></div>
+
+    <!-- Crosswork-AI-style hero shown at rest -->
+    <div id="hero" class="hero">
+      <img class="hero-mark" src="/cnc/crosswork-ai-mark.svg" alt="" aria-hidden="true" />
+      <h2 class="hero-title">How can I help today?</h2>
+      <p class="hero-sub">Choose a suggestion or use the text field to ask a question. I have
+        limitations and won&apos;t always get it right, but your feedback will help me improve.</p>
+      <div class="hero-cards">
+        <button class="card" data-intent="start">Start SRv6 migration</button>
+        <button class="card" data-intent="status">Check migration status</button>
+        <button class="card" data-intent="addcheck">Add a pre/post check to a phase</button>
+        <button class="card" data-intent="newwf">Create a new workflow</button>
+      </div>
+    </div>
+
+    <div id="chat" class="chat"></div>
+
+    <form id="composer" class="composer" autocomplete="off">
+      <input id="msg" class="msg-input" placeholder="Ask the assistant a question" />
+      <button id="send" class="send" type="submit" title="Send">&#10148;</button>
+    </form>
+  </main>
+</div>
+
+<script src="/assistant.js"></script>
+</body>
+</html>

@@ -1,0 +1,867 @@
+{
+  "workflowId": "ad84269a-ed05-424b-8dc0-18c19a38c9bc",
+  "createdAt": "2026-02-18T01:36:29.38496Z",
+  "updatedAt": "2026-06-29T21:45:15.833133Z",
+  "name": "route-summary-cwm-sol",
+  "version": "2.1.0",
+  "description": "Capture and compare the route summary information and show the differences between pre and post upgrade if any. If stash is passed as part of the input then the execution data is matched with the stash. Otherwise, the stash data is returned. \"Failure\" status is returned if there is some execution error. \"Warning\" status is returned if the stash data does not match with the execution data.",
+  "definition": {
+    "id": "route-summary-cwm-sol",
+    "name": "route-summary-cwm-sol",
+    "start": "check-device-family",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "inject-template-and-expressions-xr"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "inject-template-and-expressions-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "data": {
+          "commands": [
+            {
+              "command": "show route summary",
+              "cmdOrder": 1,
+              "template": "Value RouteSource (.+?)\nValue Routes (\\d+)\nValue Backup (\\d+)\nValue Deleted (\\d+)\nValue Memory (\\d+)\n\nStart\n  ^${RouteSource}\\s{2,}${Routes}\\s+${Backup}\\s+${Deleted}\\s+${Memory} -> Record"
+            },
+            {
+              "command": "show route vrf all summary",
+              "cmdOrder": 2,
+              "template": "Value Filldown VRF (.*)\nValue RouteSource (.+?)\nValue Routes (\\d+)\nValue Backup (\\d+)\nValue Deleted (\\d+)\nValue Memory (\\d+)\n\nStart\n  ^VRF: ${VRF}\n  ^${RouteSource}\\s{2,}${Routes}\\s+${Backup}\\s+${Deleted}\\s+${Memory} -> Record"
+            }
+          ],
+          "expressions": [
+            {
+              "status": "error",
+              "message": "Route summary check failed.",
+              "condition": "((. | length == 0) or (.[0] | length == 0) or (.[1] | length == 0))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for route summary check"
+            }
+          ]
+        },
+        "transition": "execute-route-summary-check-command-xr"
+      },
+      {
+        "data": {
+          "command": "show ip route summary",
+          "template": "Value RouteSource (.+?)\nValue Networks (\\d+)\nValue Subnets (\\d+)\nValue Replicates (\\d+)\nValue Overhead (\\d+)\nValue Memory (\\d+)\n\nStart\n  ^${RouteSource}\\s+${Networks}\\s+${Subnets}\\s+${Replicates}\\s+${Overhead}\\s+${Memory} -> Record",
+          "expressions": [
+            {
+              "status": "error",
+              "message": "Route summary check failed.",
+              "condition": "[.[]] | length == 0"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for route summary check"
+            }
+          ]
+        },
+        "transition": "execute-route-summary-check-command-xe"
+      },
+      {
+        "name": "execute-route-summary-check-command-xr",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-multi-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${{message: .message, routeSummaryData: (if (.stash != null and .stash.output != []) then [.stash.output[] | map(select(.RouteSource != \"Total\" and .RouteSource != \"\"))] else null end), status: .status}}",
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"commands\": .commands, \"expressions\": .expressions})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling rakutil executor for multiple commands"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check-xr"
+        }
+      },
+      {
+        "name": "execute-route-summary-check-command-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": .command, \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\"})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling rakutil executor for multiple commands"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check-xe"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check-xr",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash"
+          },
+          {
+            "name": "output is invalid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "handle-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check-xe",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "output is valid",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-stash-xe"
+          },
+          {
+            "name": "output is invalid",
+            "condition": "${ if .rakutilExecutorData.status==\"failed\" then true else false end}",
+            "transition": "handle-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "format-output-list"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status"
+        }
+      },
+      {
+        "name": "check-stash-xe",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-stash",
+            "condition": "${.stash != null}",
+            "transition": "validate-preupgrade-stash"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "set-preupgrade-status-xe"
+        }
+      },
+      {
+        "name": "validate-preupgrade-stash",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "Check if there is a difference in route summary",
+            "condition": "${ (.rakutilExecutorData.stash.output|sort) != (.stash.RouteSummary|sort) }",
+            "transition": "get-route-differences-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "form-success-message-xe"
+        }
+      },
+      {
+        "name": "format-output-list",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-grt-routeSource-differences",
+        "stateDataFilter": {
+          "output": "${.rakutilExecutorData.routeSummaryData = (if .rakutilExecutorData.routeSummaryData[0][0].VRF == null then .rakutilExecutorData.routeSummaryData else [.rakutilExecutorData.routeSummaryData[1], .rakutilExecutorData.routeSummaryData[0]] end)}"
+        }
+      },
+      {
+        "name": "get-route-differences-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting differences in route summary data between current execution and stash"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-missing-routes-xe",
+        "stateDataFilter": {
+          "output": "${ .warnings += [.stash.RouteSummary as $f1 | .rakutilExecutorData.stash.output as $f2 | ($f1 - $f2).[] as $f3 | reduce $f3 as {$Memory,$Networks,$Overhead,$Replicates,$RouteSource,$Subnets} (null; ($f2.[] | select(.RouteSource == $RouteSource) | (\"For \"  + $RouteSource + \" route, \" + (\"Memory\" + (if((.Memory|tonumber)>($Memory|tonumber)) then (\" increased from \" + $Memory + \" to \" + .Memory) else (if((.Memory|tonumber)==($Memory|tonumber)) then \" remained same\" else (\" decreased from \" + $Memory + \" to \" + .Memory)end) end)) + (\", Networks\" + (if((.Networks|tonumber)>($Networks|tonumber)) then (\" increased from \" + $Networks + \" to \" + .Networks) else (if((.Networks|tonumber)==($Networks|tonumber)) then \" remained same\" else (\" decreased from \" + $Networks + \" to \" + .Networks)end) end)) + (\", Overhead\" + (if((.Overhead|tonumber)>($Overhead|tonumber)) then (\" increased from \" + $Overhead + \" to \" + .Overhead) else (if((.Overhead|tonumber)==($Overhead|tonumber)) then \" remained same\" else (\" decreased from \" + $Overhead + \" to \" + .Overhead)end) end)) + (\", Replicates\" + (if((.Replicates|tonumber)>($Replicates|tonumber)) then (\" increased from \" + $Replicates + \" to \" + .Replicates) else (if((.Replicates|tonumber)==($Replicates|tonumber)) then \" remained same\" else (\" decreased from \" + $Replicates + \" to \" + .Replicates)end) end)) + (\", Overhead\" + (if((.Overhead|tonumber)>($Overhead|tonumber)) then (\" increased from \" + $Overhead + \" to \" + .Overhead) else (if((.Overhead|tonumber)==($Overhead|tonumber)) then \" remained same\" else (\" decreased from \" + $Overhead + \" to \" + .Overhead)end) end)) + (\", Subnets\" + (if((.Subnets|tonumber)>($Subnets|tonumber)) then (\" increased from \" + $Subnets + \" to \" + .Subnets) else (if((.Subnets|tonumber)==($Subnets|tonumber)) then \" remained same\" else (\" decreased from \" + $Subnets + \" to \" + .Subnets)end) end)))))] }"
+        }
+      },
+      {
+        "name": "get-missing-routes-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting missing routes between current execution and stash"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "get-extra-routes-xe",
+        "stateDataFilter": {
+          "output": "${ (([.stash.RouteSummary[] | .RouteSource]) - ([.rakutilExecutorData.stash.output[] | .RouteSource])) as $f1 | .warnings += (if $f1|length != 0 then [ (\"Found missing routes - \" + ($f1 | join(\", \"))) ] else [] end) }"
+        }
+      },
+      {
+        "name": "get-extra-routes-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting extra routes in current execution"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-warning-status-xe",
+        "stateDataFilter": {
+          "output": "${ (([.rakutilExecutorData.stash.output[] | .RouteSource]) - ([.stash.RouteSummary[] | .RouteSource]) ) as $f1 | .warnings += (if $f1|length != 0 then [(\"Found extra routes - \" + ($f1 | join(\", \"))) ] else [] end) | .status=\"warning\" | .message=\"Differences are found in route summary data in post-upgrade check.\" }"
+        }
+      },
+      {
+        "name": "get-grt-routeSource-differences",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting GRT routeSource differences"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "get-grt-route-differences"
+        },
+        "stateDataFilter": {
+          "output": "${((.warnings) += [(.stash.GRT as $f1 | .rakutilExecutorData.routeSummaryData[0] as $f2 | ([$f1[].RouteSource] - [$f2[].RouteSource]) + ([$f2[].RouteSource] - [$f1[].RouteSource]) | join(\", \") | if . == \"\" then null else (. + \": this/these RouteSources is/are different between pre and post upgrade checks (GRT).\") end)])}"
+        }
+      },
+      {
+        "name": "get-grt-route-differences",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting GRT route differences"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "get-vrf-routeSource-differences"
+        },
+        "stateDataFilter": {
+          "output": "${ ((.warnings) += [.rakutilExecutorData.routeSummaryData[0][] as $f1 | .stash.GRT[] as $f2 | reduce $f1 as {$RouteSource,$Routes} (null; $f2 | select(.RouteSource == $RouteSource) | ((select(.Routes != $Routes))| (\"Differences in number of GRT routes detected: \" + \"RouteSource \" + .RouteSource + \":\" + .Routes + \" -> \" + $Routes)))]) }"
+        }
+      },
+      {
+        "name": "get-vrf-routeSource-differences",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting VRF routeSource differences"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "get-vrf-route-differences"
+        },
+        "stateDataFilter": {
+          "output": "${ ((.warnings) += [(.stash.VRF as $f1 | .rakutilExecutorData.routeSummaryData[1] as $f2 | ([$f1[].RouteSource] - [$f2[].RouteSource]) + ([$f2[].RouteSource] - [$f1[].RouteSource]) | join(\", \") | if . == \"\" then null else (. + \": this/these RouteSources is/are different between pre and post upgrade checks (VRF).\") end)]) }"
+        }
+      },
+      {
+        "name": "get-vrf-route-differences",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Getting VRF route differences"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "process-warnings"
+        },
+        "stateDataFilter": {
+          "output": "${ ((.warnings) += [.rakutilExecutorData.routeSummaryData[1][] as $f1 | .stash.VRF[] as $f2 | reduce $f1 as {$RouteSource,$VRF,$Routes} (null; $f2 | (select(.VRF == $VRF and .RouteSource == $RouteSource))| ((select(.Routes != $Routes) | (\"VRF:\" + .VRF + \" RouteSource:\" + .RouteSource + \"->\" + \"Pre:\" + .Routes + \" Post:\" + $Routes ))))]) }"
+        }
+      },
+      {
+        "name": "process-warnings",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "final-output-processing",
+        "stateDataFilter": {
+          "output": "${{\"warnings\": .warnings | map(select(.)), stash: .rakutilExecutorData.routeSummaryData}}"
+        }
+      },
+      {
+        "name": "final-output-processing",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "warning",
+            "condition": "${.warnings | length > 0}",
+            "transition": "form-warning-message"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "form-success-message"
+        }
+      },
+      {
+        "name": "form-warning-message",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Route summary check completed with warning/s"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-stash",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"warning\", \"message\": (\"Route summary is captured and it has warnings. \" + (if .warnings != [] then (.warnings | join(\", \")) else \"\" end)), \"stash\": .stash}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-warning-status-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Reoute summary check completed with warnings"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": .status, \"message\": (if .warnings then .warnings | join(\", \") else .message end), stash: .rakutilExecutorData.stash.output}}"
+        }
+      },
+      {
+        "name": "form-success-message",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route summary check completed successfully. No difference found between stash and current execution."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-stash",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Route summary is captured successfully. No difference found between stash and current execution.\", \"stash\": .stash}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "form-success-message-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route summary check completed successfully. No difference found between stash and current execution."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Route summary is captured successfully. No difference found between stash and current execution.\", \"stash\": {RouteSummary: .rakutilExecutorData.stash.output}}}"
+        }
+      },
+      {
+        "name": "set-preupgrade-status",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route summary check completed successfully. Creating stash."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "set-stash",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Route summary is captured.\", \"stash\": .rakutilExecutorData.routeSummaryData}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-preupgrade-status-xe",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Route summary check completed successfully. Creating stash."
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Route summary is captured.\", stash: {RouteSummary: .rakutilExecutorData.stash.output}}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "set-stash",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${.stash = if (.stash[0][0].VRF == null) then {GRT: .stash[0], VRF: .stash[1]} else {GRT: .stash[1], VRF: .stash[0]} end}"
+        }
+      },
+      {
+        "end": true,
+        "name": "handle-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Error while executing route summary check mop activity"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": (if .rakutilExecutorData.message then .rakutilExecutorData.message else \"Error while executing route summary check mop activity.\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Route summary exited abnormally"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Exited abnormally.\"}}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": {
+        "VRF": [
+          {
+            "VRF": "0c\\u0013",
+            "Backup": "0",
+            "Memory": "216",
+            "Routes": "1",
+            "Deleted": "0",
+            "RouteSource": "static"
+          },
+          {
+            "VRF": "0c\\u0013",
+            "Backup": "0",
+            "Memory": "216",
+            "Routes": "1",
+            "Deleted": "0",
+            "RouteSource": "connected"
+          }
+        ],
+        "routeSource": [
+          {
+            "Backup": "0",
+            "Memory": "0",
+            "Routes": "0",
+            "Deleted": "0",
+            "RouteSource": "connected"
+          },
+          {
+            "Backup": "0",
+            "Memory": "0",
+            "Routes": "0",
+            "Deleted": "0",
+            "RouteSource": "local"
+          }
+        ]
+      }
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Capture and compare the route summary information and show the differences between pre and post upgrade if any. If stash is passed as part of the input then the execution data is matched with the stash. Otherwise, the stash data is returned. \"Failure\" status is returned if there is some execution error. \"Warning\" status is returned if the stash data does not match with the execution data.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "routeSummaryCheckSchema",
+        "properties": {
+          "stash": {
+            "type": "object"
+          },
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource"
+            ],
+            "properties": {
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "79318cd40b0048c55d81eb08f01643586e354f0b9bd8aa1e3570a9da2f754ac3"
+}

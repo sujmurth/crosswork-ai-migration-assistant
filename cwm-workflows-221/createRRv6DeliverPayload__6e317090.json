@@ -1,0 +1,252 @@
+{
+  "workflowId": "6e317090-44e4-4560-8c93-705676b94041",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-07-25T00:21:24.565308Z",
+  "name": "createRRv6DeliverPayload",
+  "version": "1.0",
+  "description": "Create and deliver enable IPv6 golden config payload",
+  "definition": {
+    "id": "createRRv6DeliverPayload-1.0",
+    "name": "createRRv6DeliverPayload",
+    "start": "InjectPayload",
+    "errors": [
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "NSOError",
+        "description": "NSOErr: NSO Data Error"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "resourceUnauthorized",
+        "description": "NSOErr: Resource Unauthorized"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "entityNotFound",
+        "description": "NSOErr: Entity Not Found"
+      },
+      {
+        "code": "HTTP_STATUS_409",
+        "name": "resourceExists",
+        "description": "NSOErr: Resource already exists"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "noRouteToHost",
+        "description": "NSOErr: No Route to NSO host"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "P1": "{\r\n    \"application\": [\r\n      {\r\n        \"device\": \"",
+          "P2": "\",\r\n \"jinja-template\": {\r\n  \"template\": \"route-policy-template\",\r\n \"version\": \"1\"\r\n },\r\n \"name\": \"cwm-gc-route-policy-",
+          "P3": "\",\r\n      \"variable\": [\r\n        {\r\n          \"name\": \"local_preference\",\r\n          \"value\": \"",
+          "P4": "\"\r\n        }\r\n      ]\r\n    }\r\n  ]\r\n} "
+        },
+        "name": "InjectPayload",
+        "type": "inject",
+        "transition": "concatenatePayload"
+      },
+      {
+        "name": "concatenatePayload",
+        "type": "operation",
+        "transition": "RRv6-GC-Policy-Apply",
+        "stateDataFilter": {
+          "input": "${ . }",
+          "output": "${ { payload: \"\\(.P1 + .node.name + .P2 + .node.name + \"\" + .P3 + ( .preference | tostring )+ .P4) \", node: .node.name, action: .action } }"
+        }
+      },
+      {
+        "name": "RRv6-GC-Policy-Apply",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "RRv6configsAPPLY",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${ {\"golden-config:golden-config\": (.payload | fromjson)} }",
+                  "path": "restconf/data/golden-config:golden-config",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ],
+        "transition": "InjectVerify"
+      },
+      {
+        "data": {
+          "V1": "restconf/data/golden-config:golden-config/golden-config:application=cwm-gc-route-policy-",
+          "V2": "/golden-config:get-modifications"
+        },
+        "name": "InjectVerify",
+        "type": "inject",
+        "transition": "concatenateNSOPath"
+      },
+      {
+        "name": "concatenateNSOPath",
+        "type": "operation",
+        "transition": "RRv6-GC-Policy-Validate",
+        "stateDataFilter": {
+          "input": "${ . }",
+          "output": "${ { nsoPath: \"\\(.V1 + .node + .V2)\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "RRv6-GC-Policy-Validate",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "RRv6configsVALIDATE",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPost",
+              "arguments": {
+                "input": {
+                  "data": {},
+                  "path": "${ .nsoPath }",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfGet",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Get"
+      },
+      {
+        "name": "NSO.RestconfPost",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "NSO.Connect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.Connect"
+      },
+      {
+        "name": "NSO.Disconnect",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.Disconnect"
+      },
+      {
+        "name": "NSO.CheckSync",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CheckSync"
+      },
+      {
+        "name": "NSO.GetDeviceList",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.GetDeviceList"
+      },
+      {
+        "name": "NSO.ShowConfig",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowConfig"
+      },
+      {
+        "name": "NSO.SyncFrom",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncFrom"
+      },
+      {
+        "name": "NSO.SyncTo",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SyncTo"
+      },
+      {
+        "name": "NSO.CompareConfig",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.CompareConfig"
+      },
+      {
+        "name": "NSO.FetchSshHostKeys",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.FetchSshHostKeys"
+      },
+      {
+        "name": "NSO.SetAdminState",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.SetAdminState"
+      },
+      {
+        "name": "NSO.ShowPlatformInfo",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.device.ShowPlatformInfo"
+      },
+      {
+        "name": "NSO.RestconfPatch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      }
+    ],
+    "description": "Create and deliver enable IPv6 golden config payload",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "RRv6",
+    "NSO"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "42a708e819e7289497a6166bfd04218eefa2278a918b6e19d842438434cea3c5"
+}

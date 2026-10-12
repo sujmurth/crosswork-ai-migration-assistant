@@ -1,0 +1,149 @@
+{
+  "workflowId": "0773f3d3-2f46-46e7-a352-5c15f7d69f57",
+  "createdAt": "2026-02-18T01:37:33.288064Z",
+  "updatedAt": "2026-02-18T01:37:33.288064Z",
+  "name": "get-nso-svc-config-data-cwm-sol",
+  "version": "2.1.0",
+  "description": "Workflow to retrieve service content data using the restconf/data/{serviceEndpoint}={serviceName}?content=config API endpoint via NSO activity executor",
+  "definition": {
+    "id": "get-nso-svc-config-data-cwm-sol",
+    "name": "get-nso-svc-config-data-cwm-sol",
+    "start": "get-nso-svc-config-data",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "get-nso-svc-config-data",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ . }",
+              "toStateData": ".serviceConfigResult",
+              "fromStateData": "${{\"activity\": {\"path\": (\"restconf/data/\" + .serviceEndpoint + \"=\" + .serviceName + \"?content=config\"), \"resourceId\": .\"app-data\".resource, \"method\":\"get\"}}}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "validate-output"
+      },
+      {
+        "name": "validate-output",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "if result is success",
+            "condition": "${ .serviceConfigResult.activityOutput.status == \"success\" }",
+            "transition": "capture-service-config"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-error"
+        }
+      },
+      {
+        "name": "capture-service-config",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "actionExecTimeout": "PT5M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"success\", \"message\": \"Successfully retrieved service configuration.\", \"serviceName\": .serviceName, \"serviceEndpoint\": .serviceEndpoint, \"serviceConfiguration\": .serviceConfigResult.activityOutput.output}}"
+        }
+      },
+      {
+        "name": "return-error",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT5M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Failed to retrieve Service Config content data.\", \"error\": .serviceConfigResult}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT5M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${{\"status\": \"failed\", \"message\": \"Abnormal exit while retrieving configuration content data\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [],
+        "timeouts": {
+          "stateExecTimeout": "PT5M"
+        },
+        "stateDataFilter": {
+          "output": "${.}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT5M"
+      }
+    },
+    "description": "Workflow to retrieve service content data using the restconf/data/{serviceEndpoint}={serviceName}?content=config API endpoint via NSO activity executor",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "GetServiceConfigContentSchema",
+        "required": [
+          "serviceEndpoint",
+          "serviceName"
+        ],
+        "properties": {
+          "serviceName": {
+            "type": "string",
+            "title": "Service Name",
+            "description": "The specific service application name to retrieve config for. For example, native-xr-app"
+          },
+          "serviceEndpoint": {
+            "type": "string",
+            "title": "Service Endpoint",
+            "description": "The base API endpoint to query for NSO applications. For example, service-type:service-name/service-name"
+          }
+        }
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "noExport"
+  ],
+  "formId": "cwm.forms.get-nso-svc-config-data-cwm-sol",
+  "path": "",
+  "hashSum": "c9466c80e5858bdf4105540b16a82ad90a9bc21d5c8f6a2126a0c29035cd6e38"
+}

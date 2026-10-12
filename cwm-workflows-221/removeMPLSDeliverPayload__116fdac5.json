@@ -1,0 +1,145 @@
+{
+  "workflowId": "116fdac5-d144-4c1b-abb0-700111831b49",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-08T08:02:29.062497Z",
+  "name": "removeMPLSDeliverPayload",
+  "version": "1.0",
+  "description": "Applies the 'remove-mpls-template' golden config to a single device (creates golden-config application cwm-gc-remove-MPLS-<node>), notifies via Webex, retrieves live-status, and validates the pushed modifications via get-modifications. Called per-device by the 08.removeMPLS foreach loop.",
+  "definition": {
+    "id": "removeMPLSDeliverPayload-1.0",
+    "name": "removeMPLSDeliverPayload",
+    "start": "InjectP1",
+    "errors": [
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "NSOError",
+        "description": "NSOErr: NSO Data Error"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "resourceUnauthorized",
+        "description": "NSOErr: Resource Unauthorized"
+      },
+      {
+        "code": "HTTP_STATUS_404",
+        "name": "entityNotFound",
+        "description": "NSOErr: Entity Not Found"
+      },
+      {
+        "code": "HTTP_STATUS_409",
+        "name": "resourceExists",
+        "description": "NSOErr: Resource already exists"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "noRouteToHost",
+        "description": "NSOErr: No Route to NSO host"
+      }
+    ],
+    "states": [
+      {
+        "data": {
+          "P1": "{\r\n    \"application\": [\r\n      {\r\n        \"device\": \""
+        },
+        "name": "InjectP1",
+        "type": "inject",
+        "transition": "InjectP2"
+      },
+      {
+        "data": {
+          "P2": "\",\r\n        \"jinja-template\": {\r\n          \"template\": \"remove-mpls\",\r\n          \"version\": \"1.0\"\r\n        },\r\n        \"name\": \"cwm-gc-remove-MPLS-"
+        },
+        "name": "InjectP2",
+        "type": "inject",
+        "transition": "InjectP3"
+      },
+      {
+        "data": {
+          "P3": "\"\r\n      }\r\n    ]\r\n  }\r\n "
+        },
+        "name": "InjectP3",
+        "type": "inject",
+        "transition": "concatenatePayload"
+      },
+      {
+        "name": "concatenatePayload",
+        "type": "operation",
+        "transition": "RemoveMPLS-GC-Template-Apply",
+        "stateDataFilter": {
+          "input": "${ . }",
+          "output": "${ { payload: ({ \"application\": [ { \"device\": .node.name, \"jinja-template\": { \"template\": (if .node.name == \"node-3\" then \"remove-mpls-xe\" else \"remove-mpls\" end), \"version\": \"1.0\" }, \"name\": (\"cwm-gc-remove-MPLS-\" + .node.name) } ] } | tojson), node: .node.name, action: \"Remove MPLS/LDP transport on device\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "RemoveMPLS-GC-Template-Apply",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "removeMPLSconfigsAPPLY",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPatch",
+              "arguments": {
+                "input": {
+                  "data": "${ {\"golden-config:golden-config\": (.payload | fromjson)} }",
+                  "path": "restconf/data/golden-config:golden-config?dry-run=native",
+                  "header": {
+                    "Accept": "application/yang-data+json",
+                    "Content-Type": "application/yang-data+json"
+                  }
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfGet",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Get"
+      },
+      {
+        "name": "NSO.RestconfPost",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      },
+      {
+        "name": "NSO.RestconfPatch",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Patch"
+      }
+    ],
+    "description": "Applies the 'remove-mpls-template' golden config to a single device (creates golden-config application cwm-gc-remove-MPLS-<node>), notifies via Webex, retrieves live-status, and validates the pushed modifications via get-modifications. Called per-device by the 08.removeMPLS foreach loop.",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "step-8",
+    "removeMPLS",
+    "golden-config",
+    "SRv6-Migration"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "57452a069bd8dba181de1d352582490e5c3858990d45663eb7493ea6a4035516"
+}

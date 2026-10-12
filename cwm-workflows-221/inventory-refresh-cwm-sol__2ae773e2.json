@@ -1,0 +1,161 @@
+{
+  "workflowId": "2ae773e2-abae-4d85-8b4b-58beb7076755",
+  "createdAt": "2026-02-18T01:46:16.488533Z",
+  "updatedAt": "2026-02-18T01:46:16.488533Z",
+  "name": "inventory-refresh-cwm-sol",
+  "version": "1.0.0",
+  "description": "Workflow to invoke refresh action to get inventory result for the xr devices in NSO resource.",
+  "definition": {
+    "id": "inventory-refresh-cwm-sol",
+    "name": "inventory-refresh-cwm-sol",
+    "start": "Begin",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "invalidResource"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "NSO_ACCESS_DENIED",
+        "name": "Access_Denied",
+        "description": "RESOURCE UNAUTHORIZED"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Resource_Unauthorized",
+        "description": "RESOURCE UNAUTHORIZED"
+      }
+    ],
+    "states": [
+      {
+        "name": "Begin",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "InvokeRefreshAction",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPost",
+              "arguments": {
+                "input": {
+                  "data": "{\"device\": \"${ .device | tostring }\"}",
+                  "path": "restconf/operations/inventory:inventory/refresh"
+                },
+                "config": {
+                  "resourceId": "${ .resourceId }"
+                }
+              }
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "ERROR",
+            "transition": "GenericOtherErrors"
+          },
+          {
+            "errorRef": "invalidResource",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Access_Denied",
+            "transition": "unauthorized-access"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "bad-request"
+          },
+          {
+            "errorRef": "Resource_Unauthorized",
+            "transition": "unauthorized-access"
+          }
+        ],
+        "transition": {
+          "nextState": "JobCompleted"
+        },
+        "stateDataFilter": {
+          "input": "${ . }"
+        }
+      },
+      {
+        "end": true,
+        "name": "GenericOtherErrors",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . |= .+ {\"status\": \"Error occurred in getting inventory result for device from resource\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . |= .+ {\"status\": \"failed\", \"message\": \"Resouce not found.\"}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "bad-request",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {output: {\"status\":\"error\", \"message\":\"Please check the input the request to NSO command/operation is not in correct format.\", \"device\": .device}} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "unauthorized-access",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {output: {\"status\":\"error\", \"message\":\"Enable to execute command or action on NSO due to missing  permissions/access.\", \"device\": .device}} }"
+        }
+      },
+      {
+        "end": true,
+        "name": "JobCompleted",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${(if (.data and .data.\"inventory:output\" != \"\") then {\"result\":.data.\"inventory:output\", \"status\": .data.\"inventory:output\".status} else {\"result\": null, \"status\": .data.\"inventory:output\".status} end | del(.resourceId))}"
+        }
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT5S",
+        "multiplier": 1.1,
+        "maxAttempts": 3
+      }
+    ],
+    "version": "1.0.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfPost",
+        "metadata": {
+          "worker": "cwm-solutions-cisco.nso"
+        },
+        "operation": "cisco.nso.@latest.restconf.Post"
+      }
+    ],
+    "description": "Workflow to invoke refresh action to get inventory result for the xr devices in NSO resource.",
+    "specVersion": "0.9"
+  },
+  "wfTags": [
+    "app:Inventory"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "606d57a267bf9a2ee2efd5675a78ebcd5732989f8e9a34966021a92372fcfc68"
+}

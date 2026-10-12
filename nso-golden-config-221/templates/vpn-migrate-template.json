@@ -1,0 +1,32 @@
+{
+  "name": "vpn-migrate-template",
+  "tag": [
+    "SRv6-Migration"
+  ],
+  "version": [
+    {
+      "id": "1",
+      "type": "native",
+      "mode": "merge",
+      "config": "\n{# Phase 5 (deck step 7a/7c): PE BGP SRv6 session to RRv6 + per-VRF SRv6 locator MAIN #}\nrouter bgp {{ local_as }}\n  neighbor 2011::11\n  remote-as {{ remote_as }}\n  update-source {{ loopback }}\n  address-family vpnv4 unicast\n   encapsulation-type srv6\n   route-policy RRv6 out\n   exit\n  exit\nexit\n\nrouter bgp {{ local_as }}\n  vrf {{ vrf_name }}\n    address-family ipv4 unicast\n    mpls alloc enable\n    segment-routing srv6\n      locator MAIN\n      alloc mode per-vrf\n      exit\n    exit\n  exit\nexit\n",
+      "variable": [
+        {
+          "name": "local_as",
+          "value": "65000"
+        },
+        {
+          "name": "loopback",
+          "value": "Loopback0"
+        },
+        {
+          "name": "remote_as",
+          "value": "65000"
+        },
+        {
+          "name": "vrf_name",
+          "value": "vpn-101"
+        }
+      ]
+    }
+  ]
+}

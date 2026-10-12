@@ -1,0 +1,628 @@
+{
+  "workflowId": "4d4af9fa-1abd-4647-8bf7-e3d2005b549b",
+  "createdAt": "2026-02-18T01:37:33.274016Z",
+  "updatedAt": "2026-02-18T01:37:33.274016Z",
+  "name": "command-chaining-cwm-sol",
+  "version": "2.1.0",
+  "description": "The workflow executes the parent-operation and applies filter to the command results to build array of commands for the child-operation. Then the child operations are executed in a loop for getting corresponding command outputs.",
+  "definition": {
+    "id": "command-chaining-cwm-sol",
+    "name": "command-chaining-cwm-sol",
+    "start": "check-execution-model",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      },
+      {
+        "code": "ResourceNotFound",
+        "name": "Invalid_Resource",
+        "description": "INVALID RESOURCE ERROR"
+      },
+      {
+        "code": "HTTP_STATUS_400",
+        "name": "Bad_Request",
+        "description": "BAD REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_403",
+        "name": "Forbidden",
+        "description": "UNAUTHORIZED REQUEST"
+      },
+      {
+        "code": "HTTP_STATUS_500",
+        "name": "Http_Error_500",
+        "description": "HTTP 500 ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-execution-model",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "sequential-execution",
+            "condition": "${ if (.\"app-data\".\"executionMode\" == 2 and .deviceSelection == null) then true else false end}",
+            "transition": {
+              "nextState": "no-device-selecton-error"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "add-state-data"
+        }
+      },
+      {
+        "data": {
+          "sequence_number": 0
+        },
+        "name": "add-state-data",
+        "type": "inject",
+        "transition": "determine-device-selection"
+      },
+      {
+        "name": "determine-device-selection",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "use-device-selection",
+            "condition": "${.deviceSelection.jsonPath != null}",
+            "transition": {
+              "nextState": "set-selected-device"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "sort-operations-list"
+        }
+      },
+      {
+        "name": "set-selected-device",
+        "type": "operation",
+        "actions": [],
+        "transition": "sort-operations-list",
+        "stateDataFilter": {
+          "output": "${.selectedDevice = ((.deviceSelection.jsonPath | gsub(\"\\\\[(?<i>[0-9]+)\\\\]\"; \".\\(.i)\") | split(\".\") | map(select(. != \"\")) | map(tonumber? // .)) as $path | getpath($path)) | .\"app-data\".device = .selectedDevice}"
+        }
+      },
+      {
+        "name": "sort-operations-list",
+        "type": "operation",
+        "actions": [],
+        "transition": "execute-parent-command",
+        "stateDataFilter": {
+          "output": "${. | .operations = (.operations | sort_by(.id))}"
+        }
+      },
+      {
+        "name": "execute-parent-command",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "exec-single-command-workflow",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "run-and-review-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if .stash != null then ((. | del(.stash)) as $result | { stash: [{id: 1, stash: [.stash]}], currentOutput:$result}) else ((. | del(.stash)) as $result | { currentOutput:$result }) end }",
+              "toStateData": "${ . }",
+              "fromStateData": "${ { operation: (.operations[] | select(.id == 1)), \"app-data\": (.\"app-data\" | del(.executionMode)) } }"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT60M"
+        },
+        "transition": "check-operation-status"
+      },
+      {
+        "name": "check-operation-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .currentOutput.status != \"success\" }",
+            "transition": "set-failed-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "format-parent-output"
+        }
+      },
+      {
+        "name": "format-parent-output",
+        "type": "operation",
+        "actions": [],
+        "transition": "check-child-operation-flag",
+        "stateDataFilter": {
+          "output": "${. | .operations = .operations[1:]}"
+        }
+      },
+      {
+        "name": "check-child-operation-flag",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ (.operations[] | select(.id == 2).\"loop-enabled\" == true) }",
+            "transition": "process-jq-single-child-condition"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "execute-child-operation-multiple"
+        }
+      },
+      {
+        "name": "process-jq-single-child-condition",
+        "type": "operation",
+        "actions": [
+          {
+            "functionRef": {
+              "refName": "CWMSUtils.Post",
+              "arguments": {
+                "input": {
+                  "data": "${ {data_source: ., expression_json: . } }",
+                  "path": "/v1/cwms-utils/process-jq-expressions"
+                },
+                "config": {
+                  "resourceId": "${ \"cwm.sol.system.util\" }"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if .status == 200 then .data end }",
+              "toStateData": "${ .processedOutput }"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          },
+          {
+            "errorRef": "Invalid_Resource",
+            "transition": "invalid-resource-error"
+          },
+          {
+            "errorRef": "Bad_Request",
+            "transition": "rest-api-error"
+          },
+          {
+            "errorRef": "Forbidden",
+            "transition": "forbidden-error"
+          },
+          {
+            "errorRef": "Http_Error_500",
+            "transition": "server-error"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT60M"
+        },
+        "transition": "verify-processed-data"
+      },
+      {
+        "name": "verify-processed-data",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .processedOutput.status == \"success\" }",
+            "transition": "filter-processed-data"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "rest-api-error"
+        }
+      },
+      {
+        "name": "filter-processed-data",
+        "type": "operation",
+        "actions": [],
+        "transition": "execute-child-operation",
+        "stateDataFilter": {
+          "output": "${.processedOutput.data | .child_commands = (if .operations[].command != null then .operations[].command else .operations[].path end)}"
+        }
+      },
+      {
+        "name": "execute-child-operation",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "exec-cli-command",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "run-and-review-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ . }",
+              "toStateData": "${ .childOperationData }",
+              "fromStateData": "${ { operation:(.child_commands[.sequence_number] as $cmd | .operations[] | .command=(if .method == \"execCli\" then $cmd else null end) | .path=(if (.method == \"get\" or .method == \"post\") then $cmd else null end)), \"app-data\": (.\"app-data\" | del(.executionMode)) } }"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "check-child-operation-status"
+      },
+      {
+        "name": "execute-child-operation-multiple",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "exec-cli-command",
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "run-and-review-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ . }",
+              "toStateData": "${ .childOperationData }",
+              "fromStateData": "${ { operation:.operations[.sequence_number], \"app-data\": (.\"app-data\" | del(.executionMode)), stash: (if (.stash[.sequence_number].stash | type == \"array\") then .stash[.sequence_number].stash[] else .stash[.sequence_number].stash end) } }"
+            }
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": "check-child-operation-status"
+      },
+      {
+        "name": "check-child-operation-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .childOperationData.status == \"failed\" }",
+            "transition": "set-failed-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "format-child-output"
+        }
+      },
+      {
+        "name": "format-child-output",
+        "type": "operation",
+        "actions": [],
+        "transition": "increment-counter",
+        "stateDataFilter": {
+          "output": "${. | .stash += [{id: (if (.operations[] | select(.id == 2).\"loop-enabled\" != true) then (.operations[.sequence_number].id) else ((.operations[].id | tostring) + \"-\" + (.sequence_number + 1 | tostring)) end), stash: .childOperationData.stash}] | del(.childOperationData)}"
+        }
+      },
+      {
+        "name": "increment-counter",
+        "type": "operation",
+        "actions": [],
+        "transition": "check-counter",
+        "stateDataFilter": {
+          "output": "${ .sequence_number = .sequence_number + 1 }"
+        }
+      },
+      {
+        "name": "check-counter",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ .sequence_number < (.child_commands | length) }",
+            "transition": "execute-child-operation"
+          },
+          {
+            "condition": "${ .sequence_number < (.operations | length) }",
+            "transition": "execute-child-operation-multiple"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-activity-status"
+        }
+      },
+      {
+        "name": "check-activity-status",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "condition": "${ [.history[] | select(.status | test(\"warning\"))] | length > 0 }",
+            "transition": "set-warning-status"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "success"
+        }
+      },
+      {
+        "name": "success",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"success\", message: \"All commands executed and evaluated successfully\", stash: .stash, processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "set-warning-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"warning\", message: \"Some of the commands issued a warning\", stash: .stash, processedResource: (if .\"app-data\".device.uuid != null then [.\"app-data\".device.uuid] else [] end) } }"
+        }
+      },
+      {
+        "name": "set-failed-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"failed\", message: (\"Activity interrupted due to command error: \" + .currentOutput.message)  } }"
+        }
+      },
+      {
+        "name": "set-timeout-status",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ { status:\"timeout\", message: \"Loop interrupted due to timeout\" } }"
+        }
+      },
+      {
+        "name": "invalid-resource-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message:\"Resource not found\"} }"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message:\"Exited abnormally\"} }"
+        }
+      },
+      {
+        "name": "rest-api-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message:\"Automation API error\"} }"
+        }
+      },
+      {
+        "name": "forbidden-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Unauthorized request error\" } }"
+        }
+      },
+      {
+        "name": "server-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message:\"Internal server error\"} }"
+        }
+      },
+      {
+        "name": "no-device-selecton-error",
+        "type": "operation",
+        "actions": [],
+        "transition": "end",
+        "stateDataFilter": {
+          "output": "${ {status:\"failed\", message: \"Execution model is fleet-wide, but deviceSelection is not present.\" } }"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT60M"
+      }
+    },
+    "functions": [
+      {
+        "name": "CWMSUtils.Post",
+        "metadata": {
+          "worker": "cwm-solutions-generic.rest"
+        },
+        "operation": "generic.rest.@latest.request.Post"
+      },
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "The workflow executes the parent-operation and applies filter to the command results to build array of commands for the child-operation. Then the child operations are executed in a loop for getting corresponding command outputs.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "required": [
+          "operations"
+        ],
+        "properties": {
+          "operations": {
+            "type": "array",
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "const": "execCli"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "command",
+                    "template"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "enum": [
+                        "get",
+                        "post"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "path"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "method": {
+                      "const": "post"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "payload": {
+                      "type": "string",
+                      "title": "Payload",
+                      "description": "The payload to be sent with the post request when the method is 'post'. This should be a valid stringified JSON object. Can be omitted for POST requests that don't require a payload."
+                    }
+                  }
+                }
+              }
+            ],
+            "required": [
+              "method",
+              "expressions"
+            ],
+            "properties": {
+              "id": {
+                "type": "number",
+                "description": "Unique id for the operation object"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The NSO REST Conf URI path to use when the method is 'get' or 'post'\u2014that is, the endpoint that can provide the required device data."
+              },
+              "filter": {
+                "type": "string",
+                "description": "A filter (json query) to apply to the processed command output. This is used to narrow down the results based on specific criteria."
+              },
+              "method": {
+                "enum": [
+                  "get",
+                  "post",
+                  "execCli"
+                ],
+                "type": "string",
+                "description": "Method to be used for the command execution. Either get, post or execCli"
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The exec-cli command that needs to be executed on the device."
+              },
+              "payload": {
+                "type": "string",
+                "description": "The payload to be sent with the post request when the method is 'post'. This should be a valid JSON string."
+              },
+              "template": {
+                "type": "string",
+                "description": "TextFSM template to be applied to the command output. This is used to parse the command output into structured data."
+              },
+              "expressions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "condition",
+                    "message",
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                        "warning",
+                        "success"
+                      ],
+                      "type": "string",
+                      "description": "The status of the expression evaluation."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "The message to display when the condition is met."
+                    },
+                    "condition": {
+                      "type": "string",
+                      "description": "The json query condition to evaluate against the command output."
+                    }
+                  },
+                  "description": "An expression to evaluate against the command output."
+                },
+                "minItems": 1,
+                "description": "A list of json query expressions to evaluate against the command output. These expressions are used against the processed command output to determine the final result."
+              },
+              "loop-enabled": {
+                "type": "boolean",
+                "description": "Checks whether there is one single child conditions or only one child operation."
+              }
+            },
+            "description": "A list containing the operations to be executed. One parent operation's output should help to form inputs to the other operations."
+          },
+          "deviceSelection": {
+            "type": "object",
+            "title": "Device Selection",
+            "properties": {
+              "jsonPath": {
+                "type": "string",
+                "title": "JSON Path",
+                "description": "JSONPath expression to select specific device from available devices"
+              }
+            },
+            "description": "Optional device selection configuration for targeting specific devices"
+          }
+        },
+        "description": "Input schema for the workflow. This schema specifies the required structure and properties for input data."
+      }
+    },
+    "failOnValidationErrors": true
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.command-chaining-cwm-sol",
+  "path": "",
+  "hashSum": "58c934e15c5da537d5260bc0fc21be74cd93c487041cff471a7674020ca14529"
+}

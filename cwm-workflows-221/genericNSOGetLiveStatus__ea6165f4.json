@@ -1,0 +1,81 @@
+{
+  "workflowId": "ea6165f4-d264-4c65-be93-374479f1ae69",
+  "createdAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-08-11T17:13:42.052038Z",
+  "name": "genericNSOGetLiveStatus",
+  "version": "1.0",
+  "description": "Retrieve a device's live-status date",
+  "definition": {
+    "id": "genericNSOGetLiveStatus-1.0",
+    "name": "genericNSOGetLiveStatus",
+    "start": "setArgs",
+    "states": [
+      {
+        "data": {
+          "nsoPath": "restconf/operations/devices/device=${ .node }/live-status/${ if .node == \"node-3\" then \"tailf-ned-cisco-ios-stats\" else \"tailf-ned-cisco-ios-xr-stats\" end }:exec/any",
+          "execArgs": "{    \"input\": {        \"args\": \"show segment-routing srv6 locator\"    }}"
+        },
+        "name": "setArgs",
+        "type": "inject",
+        "transition": "getLiveStatus"
+      },
+      {
+        "end": {
+          "terminate": true
+        },
+        "name": "getLiveStatus",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "getNSODeviceLiveStatus",
+            "retryRef": "Default",
+            "functionRef": {
+              "refName": "NSO.RestconfPost",
+              "arguments": {
+                "input": {
+                  "data": "${ .execArgs }",
+                  "path": "restconf/operations/devices/device=${ .node }/live-status/${ if .node == \"node-3\" then \"tailf-ned-cisco-ios-stats\" else \"tailf-ned-cisco-ios-xr-stats\" end }:exec/any"
+                },
+                "config": {
+                  "resourceId": "eNSO"
+                }
+              }
+            },
+            "actionDataFilter": {
+              "results": "${ if (.data) then (.data | (.\"tailf-ned-cisco-ios-xr-stats:output\" // .\"tailf-ned-cisco-ios-stats:output\" // {}).result) else null end }",
+              "toStateData": "${ .nodeLiveStatusResults }"
+            }
+          }
+        ]
+      }
+    ],
+    "retries": [
+      {
+        "name": "Default",
+        "delay": "PT20S",
+        "multiplier": 1.5,
+        "maxAttempts": 2
+      }
+    ],
+    "version": "1.0",
+    "functions": [
+      {
+        "name": "NSO.RestconfGet",
+        "operation": "cisco.nso.@latest.restconf.Get"
+      },
+      {
+        "name": "NSO.RestconfPost",
+        "operation": "cisco.nso.@latest.restconf.Post"
+      }
+    ],
+    "description": "Retrieve a device's live-status date",
+    "specVersion": "0.8"
+  },
+  "wfTags": [
+    "devices",
+    "NSO"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "97b2a55fb06f41b6a0fc636188a758e8f8d7b0778a243eb3ce24db68ffaeed0d"
+}

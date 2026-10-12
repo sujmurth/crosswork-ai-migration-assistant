@@ -1,0 +1,386 @@
+{
+  "workflowId": "b91abfac-1d4d-4c20-9124-421c28ad1973",
+  "createdAt": "2026-02-18T01:36:29.052878Z",
+  "updatedAt": "2026-06-29T21:45:14.449567Z",
+  "name": "cisco-disk-space-cwm-sol",
+  "version": "2.1.0",
+  "description": "Checks if the device has sufficient free space for upgrade. For XE 1 GB free space in bootflash:/flash: is checked and for XR the free space in harddisk: is checked for 2.56 GB and the rootfs and disk0 available percentage is checked for greater than 5%. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+  "definition": {
+    "id": "cisco-disk-space-cwm-sol",
+    "name": "cisco-disk-space-cwm-sol",
+    "start": "check-device-family",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "Default_Exception",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "check-device-family",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check-iosxr",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco 8000 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540L Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5700 Series Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 9000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco XRv 9000 Series Virtual Routers\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 5500 Series\") or (.\"app-data\".device.productSeries == \"Cisco Network Convergence System 540 Series Routers\") }",
+            "transition": "inject-template-and-expressions-xr"
+          },
+          {
+            "name": "check-iosxe",
+            "condition": "${ (.\"app-data\".device.productSeries == \"Cisco ASR 920 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 900 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco ASR 1000 Series Aggregation Services Routers\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9300 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8000V Edge Chassis Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 3650 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 8300 Series Edge Platforms\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 Series Switches\") or (.\"app-data\".device.productSeries == \"Cisco Catalyst 9500 series switches\") }",
+            "transition": "inject-template-and-expressions-xe"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-productSeries-error"
+        }
+      },
+      {
+        "data": {
+          "command": "show file systems",
+          "template": "Value Required free_bootflash (\\S+)\n\nStart\n ^.(\\s+(\\S+))(\\s+(${free_bootflash}))(\\s+(\\S+))(\\s+(\\S+))(\\s+)(bootflash*|flash*)",
+          "expressions": [
+            {
+              "status": "success",
+              "message": "Insufficient storage for update",
+              "condition": "((. | length > 0) and (.[] | ((.free_bootflash | tonumber) > 0)))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xe",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for disk space check for XE devices"
+            }
+          ]
+        },
+        "transition": "check-disk-space"
+      },
+      {
+        "data": {
+          "command": "show media",
+          "template": "Value rootFS (\\S+)\nValue disk0FS (\\S+)\nValue Required harddiskFS (\\S+)\n\nStart\n ^rootfs:(\\s+(\\S+))(\\s+(\\S+))(\\s+)${rootFS}\n ^disk0:(\\s+(\\S+))(\\s+(\\S+))(\\s+)${disk0FS}\n ^harddisk:(\\s+(\\S+))(\\s+(\\S+))(\\s+(\\S+))(\\s+)${harddiskFS}",
+          "expressions": [
+            {
+              "status": "error",
+              "message": "Insufficient storage for update",
+              "condition": "((. | length == 0) or (.[] as $result | ((if ($result.disk0FS != null and $result.disk0FS != \"\") then (100 - ($result.disk0FS[:-1]|tonumber)) < 5 else false end) or (if ($result.rootFS != null and $result.rootFS != \"\") then (100 - ($result.rootFS[:-1]|tonumber)) < 5 else false end))))"
+            }
+          ]
+        },
+        "name": "inject-template-and-expressions-xr",
+        "type": "inject",
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Forming inputs for disk space check for XR devices"
+            }
+          ]
+        },
+        "transition": "check-disk-space"
+      },
+      {
+        "name": "check-disk-space",
+        "type": "operation",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "util-executor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "toStateData": "${.rakutilExecutorData}",
+              "fromStateData": "${({\"device\": .\"app-data\".device.name, \"NSOResourceId\": .\"app-data\".\"resource\", \"rak-resource\": \"cwm.sol.system.util\", \"command\": .command, \"template\": .template, \"expressions\": .expressions, \"vendor\": \"Cisco Systems\" })}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Calling util executor"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "Default_Exception",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "validate-rakutil-executor-check"
+        }
+      },
+      {
+        "name": "validate-rakutil-executor-check",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "success condition",
+            "condition": "${ if .rakutilExecutorData.status==\"success\" then true else false end}",
+            "transition": "check-space"
+          },
+          {
+            "name": "failure condition",
+            "condition": "${ if (.rakutilExecutorData.status==\"failed\" and .rakutilExecutorData.stash != null) then true else false end}",
+            "transition": "return-failure"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "abnormal-exit"
+        }
+      },
+      {
+        "name": "check-space",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "check space XR",
+            "condition": "${ if .rakutilExecutorData.stash.output[].harddiskFS != null then (if ((.rakutilExecutorData.stash.output[].harddiskFS[:-1]|tonumber*1024000000) > 2 * (.\"app-data\".data.imageSize)) then true else false end) else false end}",
+            "transition": "return-success"
+          },
+          {
+            "name": "check space XE",
+            "condition": "${ if .rakutilExecutorData.stash.output[].free_bootflash != null then (if ((.rakutilExecutorData.stash.output[].free_bootflash | tonumber) > 2 * (.\"app-data\".data.imageSize)) then true else false end) else false end}",
+            "transition": "return-success"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-disk-space-failure"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Disk space check completed successfully"
+            }
+          ]
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"success\", message: \"Device disk check passed.\"}}"
+        }
+      },
+      {
+        "name": "return-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Disk space check failed"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Insufficient storage for update\" end), stash: .rakutilExecutorData.nsoResponse}}"
+        }
+      },
+      {
+        "name": "invalid-productSeries-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected product series is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected product series is not supported.\" }}"
+        }
+      },
+      {
+        "name": "return-disk-space-failure",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Disk space check failed"
+            }
+          ]
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Insufficient storage for update\", stash: .rakutilExecutorData.nsoResponse}}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "ERROR",
+              "message": "Disk space check exited abnormally"
+            }
+          ]
+        },
+        "transition": {
+          "nextState": "end"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: (if .rakutilExecutorData.message != null then .rakutilExecutorData.message else \"Exited abnormally\" end)}}"
+        }
+      },
+      {
+        "end": true,
+        "name": "end",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "stateDataFilter": {
+          "output": "${ . }"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {},
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Checks if the device has sufficient free space for upgrade. For XE 1 GB free space in bootflash:/flash: is checked and for XR the free space in harddisk: is checked for 2.56 GB and the rootfs and disk0 available percentage is checked for greater than 5%. If the validation fails then the status would be returned as \"failed\", else it would be \"success\".",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "diskCheckSchema",
+        "properties": {
+          "app-data": {
+            "type": "object",
+            "required": [
+              "device",
+              "resource",
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "imageSize": {
+                    "type": "number"
+                  }
+                }
+              },
+              "device": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "productSeries"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "productSeries": {
+                    "type": "string"
+                  }
+                }
+              },
+              "resource": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "",
+  "path": "",
+  "hashSum": "83de72ee172d17672fa3f78096ea891e386264c3300d0acb9fdafde79cb9a457"
+}

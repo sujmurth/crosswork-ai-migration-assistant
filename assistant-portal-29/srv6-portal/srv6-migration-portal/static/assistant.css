@@ -1,0 +1,119 @@
+/* SRv6 Migration Assistant — chat UI styled after the Crosswork AI Assistant */
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --ink:#23282e; --ink2:#5a6673; --muted:#8a95a1;
+  --line:#e2e6ea; --brand:#0d67b7; --brand2:#00bceb; --accent:#0d67b7;
+  --ok:#1a9d4b; --warn:#c98a00; --err:#d0342c; --run:#0d67b7;
+  --bubble-user:#0d67b7; --bubble-bot:#eef1f4; --radius:12px;
+  font-family:"CiscoSans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink)}
+
+/* top bar */
+.asst-top{height:52px;background:#000;color:#fff;display:flex;align-items:center;
+  justify-content:space-between;padding:0 18px}
+.asst-top-left{display:flex;align-items:center;gap:12px}
+.cisco-logo{height:26px}
+.asst-divider{width:1px;height:22px;background:#3a3f45}
+.asst-title{font-size:14px;letter-spacing:.2px}
+.asst-top-right{display:flex;align-items:center;gap:14px}
+.asst-env{font-size:12px;background:#1d2126;border:1px solid #333;border-radius:20px;
+  padding:3px 10px;color:#9fb2c4}
+.asst-env.ok{color:#8fe0a8;border-color:#1a9d4b}
+.asst-env.err{color:#ffb4ae;border-color:#d0342c}
+.asst-link{color:#9fb2c4;font-size:12px;text-decoration:none}
+.asst-link:hover{color:#fff}
+
+/* shell */
+.asst-shell{display:flex;height:calc(100% - 52px)}
+.asst-rail{width:270px;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column}
+.asst-rail-head{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 16px 8px;font-weight:600;font-size:14px}
+.btn-newthread{border:1px solid var(--line);background:#fff;border-radius:8px;
+  padding:6px 10px;font-size:12px;color:var(--brand);cursor:pointer}
+.btn-newthread:hover{background:#f2f7fc;border-color:var(--brand)}
+.thread-list{flex:1;overflow:auto;padding:6px 8px}
+.thread{padding:9px 10px;border-radius:8px;font-size:13px;color:var(--ink2);
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread:hover{background:#f2f4f6}
+.thread.active{background:#e7f1fb;color:var(--brand)}
+.thread-group{font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--muted);padding:12px 10px 4px}
+
+/* main */
+.asst-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.phase-strip{display:flex;gap:6px;padding:12px 26px 0;flex-wrap:wrap}
+.phase-strip.hidden{display:none}
+
+/* Crosswork-AI-style hero */
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:24px 26px;gap:8px;overflow:auto}
+.hero.hidden{display:none}
+.hero-mark{width:96px;height:96px;margin-bottom:8px;display:block}
+.hero-title{margin:0;font-size:22px;font-weight:600}
+.hero-sub{margin:0;max-width:560px;color:var(--ink2);font-size:13.5px;line-height:1.6}
+.hero-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;
+  width:100%;max-width:900px}
+.card{border:1px solid var(--line);background:#fff;border-radius:10px;padding:16px 18px;
+  font-size:14px;color:var(--ink);cursor:pointer;text-align:left}
+.card:hover{border-color:var(--brand);background:#f7fbff}
+.pchip{font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--line);
+  background:#fff;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.pchip .dot{width:8px;height:8px;border-radius:50%;background:#c7ced5}
+.pchip.done{border-color:#bfe6cd;background:#effaf2;color:#1a7d3f}
+.pchip.done .dot{background:var(--ok)}
+.pchip.current{border-color:#bcdcfa;background:#eef6fe;color:var(--brand)}
+.pchip.current .dot{background:var(--run);animation:pulse 1.1s infinite}
+.pchip.failed{border-color:#f3c6c2;background:#fdeeec;color:var(--err)}
+.pchip.failed .dot{background:var(--err)}
+@keyframes pulse{0%{opacity:.35}50%{opacity:1}100%{opacity:.35}}
+
+/* chat */
+.chat{flex:1;overflow:auto;padding:22px 26px 8px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;max-width:820px}
+.row.user{align-self:flex-end;flex-direction:row-reverse}
+.av{width:30px;height:30px;border-radius:50%;flex:0 0 30px;display:flex;
+  align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:600}
+.av.bot{background:linear-gradient(135deg,var(--brand),var(--brand2))}
+.av.user{background:#5a6673}
+.bubble{padding:11px 14px;border-radius:var(--radius);font-size:14px;line-height:1.55;
+  background:var(--bubble-bot);color:var(--ink);white-space:pre-wrap;word-wrap:break-word}
+.row.user .bubble{background:var(--bubble-user);color:#fff}
+.bubble b{font-weight:600}
+.bubble code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-size:12.5px}
+.row.user .bubble code{background:rgba(255,255,255,.18)}
+.bubble .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin-top:6px;font-size:13px}
+.bubble .kv .k{color:var(--ink2)}
+.bubble ul{margin:6px 0 0;padding-left:18px}
+.bubble .tag{display:inline-block;font-size:11px;border-radius:20px;padding:1px 8px;margin-top:6px}
+.bubble .tag.ok{background:#effaf2;color:#1a7d3f}
+.bubble .tag.err{background:#fdeeec;color:var(--err)}
+.typing .bubble{color:var(--muted);font-style:italic}
+
+/* quick-reply chips inside chat */
+.replies{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 0 40px}
+.replies.hidden{display:none}
+.reply{border:1px solid var(--line);background:#fff;border-radius:20px;padding:6px 12px;
+  font-size:13px;color:var(--brand);cursor:pointer}
+.reply:hover{background:#f2f7fc;border-color:var(--brand)}
+.reply.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.reply.primary:hover{background:#0b579b}
+.reply.danger{color:var(--err);border-color:#f0c6c2}
+.reply.danger:hover{background:#fdeeec}
+
+/* suggestions at rest */
+.suggestions{display:flex;flex-wrap:wrap;gap:10px;padding:0 26px 6px}
+.suggestions.hidden{display:none}
+.sugg{border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 14px;
+  font-size:13px;color:var(--ink);cursor:pointer;text-align:left;min-width:230px}
+.sugg:hover{border-color:var(--brand);background:#f7fbff}
+
+/* composer */
+.composer{display:flex;gap:10px;padding:12px 26px 16px}
+.msg-input{flex:1;border:1px solid var(--line);border-radius:24px;padding:12px 18px;
+  font-size:14px;outline:none;background:#fff}
+.msg-input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(13,103,183,.12)}
+.send{width:44px;border:none;border-radius:50%;background:var(--brand);color:#fff;
+  font-size:16px;cursor:pointer}
+.send:hover{background:#0b579b}

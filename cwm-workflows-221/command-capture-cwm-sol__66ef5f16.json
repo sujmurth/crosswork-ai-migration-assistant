@@ -1,0 +1,345 @@
+{
+  "workflowId": "66ef5f16-d55e-4317-9a1c-dfe5959c8b3b",
+  "createdAt": "2026-02-18T01:36:29.067964Z",
+  "updatedAt": "2026-06-29T21:45:14.583506Z",
+  "name": "command-capture-cwm-sol",
+  "version": "2.1.0",
+  "description": "Check the device by running commands and capturing the response. This is executed as a MOP workflow which the user can run to check the sanity of the device. The commands passed should be executed properly and there should be no failure during their execution. Failure: If the status returned from the NSO executor is failure, or if there is an issue in running it, the this workflow would fail.",
+  "definition": {
+    "id": "command-capture-cwm-sol",
+    "name": "command-capture-cwm-sol",
+    "start": "determine-device-selection",
+    "errors": [
+      {
+        "code": "DEFAULT",
+        "name": "DEFAULT ERROR",
+        "description": "DEFAULT ERROR"
+      }
+    ],
+    "states": [
+      {
+        "name": "determine-device-selection",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "use-device-selection",
+            "condition": "${.deviceSelection.jsonPath != null}",
+            "transition": {
+              "nextState": "set-selected-device"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "check-vendor"
+        }
+      },
+      {
+        "name": "set-selected-device",
+        "type": "operation",
+        "actions": [],
+        "transition": "check-vendor",
+        "stateDataFilter": {
+          "output": "${.selectedDevice = ((.deviceSelection.jsonPath | gsub(\"\\\\[(?<i>[0-9]+)\\\\]\"; \".\\(.i)\") | split(\".\") | map(select(. != \"\")) | map(tonumber? // .)) as $path | getpath($path)) | .\"app-data\".device = .selectedDevice}"
+        }
+      },
+      {
+        "name": "check-vendor",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "install-EMS",
+            "condition": "${(.\"app-data\".device.vendor | ascii_downcase == \"cisco systems\")}",
+            "transition": {
+              "nextState": "command-executor-cisco"
+            }
+          },
+          {
+            "name": "install-NSO",
+            "condition": "${(.\"app-data\".device.vendor | ascii_downcase == \"juniper networks\")}",
+            "transition": {
+              "nextState": "command-executor-juniper"
+            }
+          }
+        ],
+        "defaultCondition": {
+          "transition": "invalid-vendor-error"
+        }
+      },
+      {
+        "name": "command-executor-cisco",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if (.activityOutput.status == \"success\" and (.activityOutput.output | tostring | test(\"Invalid\\\\s*input\\\\s*detected\"; \"i\"))) then (.activityOutput.status = \"error\" | .activityOutput.output = \"Invalid command\") elif .activityOutput.status == \"success\" then .activityOutput.output = (if .activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result != null then .activityOutput.output.\"tailf-ned-cisco-ios-xr-stats:output\".result else .activityOutput.output.\"tailf-ned-cisco-ios-stats:output\".result end) else . end | .activityOutput.command = .activity.execCommand | .activityOutput}",
+              "fromStateData": "${({\"activity\": {\"execCommand\": .commandCapture.command, \"device\": .\"app-data\".device.name, \"resourceId\": .\"app-data\".\"resource\", \"method\":\"execCli\"}})}"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "INFO",
+              "message": "Running the required commands in NSO"
+            }
+          ]
+        },
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "generate-warnings"
+        },
+        "iterationParam": "commandCapture",
+        "inputCollection": "${.commandCapture}",
+        "outputCollection": "${ .outputCollection }"
+      },
+      {
+        "name": "command-executor-juniper",
+        "type": "foreach",
+        "actions": [
+          {
+            "subFlowRef": {
+              "invoke": "sync",
+              "version": "2.1.0",
+              "workflowId": "nsoactivityexecutor-cwm-sol",
+              "onParentComplete": "continue"
+            },
+            "actionDataFilter": {
+              "results": "${ if (.activityOutput.status == \"success\" and (.activityOutput.output | tostring | test(\"Invalid\\\\s*input\\\\s*detected\"; \"i\"))) then (.activityOutput.status = \"error\" | .activityOutput.output = \"Invalid command\") elif .activityOutput.status == \"success\" then .activityOutput.output = .activityOutput.output.\"junos-rpc:output\".output else . end | .activityOutput.command = .activity.execCommand | .activityOutput}",
+              "fromStateData": "${({\"activity\": {\"execCommand\": (\"cli \"+.commandCapture.command), \"device\": .\"app-data\".device.name, \"resourceId\": .\"app-data\".\"resource\", \"method\":\"execCli\"}})}"
+            }
+          }
+        ],
+        "onErrors": [
+          {
+            "errorRef": "DEFAULT ERROR",
+            "transition": "abnormal-exit"
+          }
+        ],
+        "timeouts": {
+          "actionExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "generate-warnings"
+        },
+        "iterationParam": "commandCapture",
+        "inputCollection": "${.commandCapture}",
+        "outputCollection": "${ .outputCollection }"
+      },
+      {
+        "name": "generate-warnings",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "return",
+        "stateDataFilter": {
+          "output": "${ .warnings = (.outputCollection | map(select(.status == \"error\") | .output + \"; command: \" + .commandCapture.command)) }"
+        }
+      },
+      {
+        "name": "return",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ .status= (if (.warnings | length > 0) then \"warning\" else \"success\" end) | .message=(if (.warnings | length == 0) then (\"captured output for \" + (.commandCapture | length | tostring) + \" command(s)\") else (\"Command capture workflow encountered errors. Number of commands with error(s): \" + (.outputCollection | map(select(.status == \"error\")) | length | tostring)) end) | .stash=(.commandCapture as $commandCapture | (.outputCollection | map(.output + \"; command: \" + .commandCapture.command)) | ([range(0; (.|length)) as $i | .[$i] + $commandCapture[$i].command]))}"
+        }
+      },
+      {
+        "name": "abnormal-exit",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": "End",
+        "stateDataFilter": {
+          "output": "${ .status=\"failed\" | .message=\"Error while capturing show commands\"}"
+        }
+      },
+      {
+        "name": "invalid-vendor-error",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "metadata": {
+          "logs": [
+            {
+              "level": "WARN",
+              "message": "Selected vendor is not supported"
+            }
+          ]
+        },
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "transition": {
+          "nextState": "End"
+        },
+        "stateDataFilter": {
+          "output": "${{status:\"failed\", message: \"Selected vendor is not supported.\" }}"
+        }
+      },
+      {
+        "end": true,
+        "name": "End",
+        "type": "operation",
+        "actions": [
+          {
+            "name": "noop",
+            "functionRef": {
+              "refName": "noop"
+            }
+          }
+        ],
+        "timeouts": {
+          "stateExecTimeout": "PT15M"
+        },
+        "stateDataFilter": {
+          "output": "${{\"status\": .status, \"message\": .message, \"stash\": .stash}}"
+        }
+      }
+    ],
+    "version": "2.1.0",
+    "metadata": {
+      "stashSample": [
+        "\\r\\n\\rMon Sep 30 05:00:38.701 PDT\\r\\nCisco IOS XR Software, Version 7.8.1 LNT\\r\\nCopyright (c) 2013-2022 by Cisco Systems, Inc.\\r\\n\\r\\nBuild Information:\\r\\n Built By     : ingunawa\\r\\n Built On     : Wed Nov 30 13:00:28 UTC 2022\\r\\n Build Host   : iox-ucs-060\\r\\n Workspace    : /auto/srcarchive13/prod/7.8.1/8000/ws\\r\\n Version      : 7.8.1\\r\\n Label        : 7.8.1\\r\\n\\r\\ncisco 8000 (Intel(R) Xeon(R) CPU D-1530 @ 2.40GHz)\\r\\ncisco 8201 (Intel(R) Xeon(R) CPU D-1530 @ 2.40GHz) processor with 32GB of memory\\r\\nspitfire248 uptime is 2 weeks, 2 days, 21 hours, 57 minutes\\r\\nCisco 8201 Chassis w/ 24x400GE QSFP56-DD&12x100GE QSFP28\\r\\n\\r\\nRP/0/RP0/CPU0:spitfire248#; command: show version"
+      ]
+    },
+    "timeouts": {
+      "workflowExecTimeout": {
+        "duration": "PT15M"
+      }
+    },
+    "functions": [
+      {
+        "name": "noop",
+        "metadata": {
+          "worker": "default"
+        },
+        "operation": "system.function.@latest.common.NoOp"
+      }
+    ],
+    "description": "Check the device by running commands and capturing the response. This is executed as a MOP workflow which the user can run to check the sanity of the device. The commands passed should be executed properly and there should be no failure during their execution. Failure: If the status returned from the NSO executor is failure, or if there is an issue in running it, the this workflow would fail.",
+    "specVersion": "0.8",
+    "dataInputSchema": {
+      "schema": {
+        "type": "object",
+        "title": "Command Capture Configuration",
+        "required": [
+          "commandCapture"
+        ],
+        "properties": {
+          "commandCapture": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "title": "Command Definition",
+              "required": [
+                "command"
+              ],
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "title": "CLI Command",
+                  "examples": [
+                    "show version",
+                    "show interfaces",
+                    "show running-config",
+                    "show ip route"
+                  ],
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "description": "The CLI command to execute on the device (e.g., 'show version', 'show interfaces')"
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Commands to Execute",
+            "maxItems": 50,
+            "minItems": 1,
+            "description": "List of commands to be executed on the device for capture and validation"
+          },
+          "deviceSelection": {
+            "type": "object",
+            "title": "Device Selection",
+            "required": [
+              "jsonPath"
+            ],
+            "properties": {
+              "jsonPath": {
+                "type": "string",
+                "title": "JSON Path Expression",
+                "pattern": "^\\..+",
+                "examples": [
+                  ".inventory.devices[0]",
+                  ".sourceDevice",
+                  ".targetDevice"
+                ],
+                "minLength": 2,
+                "description": "JSON path expression to select device from app-data context (e.g., '.inventory.devices[0]', '.sourceDevice')"
+              }
+            },
+            "description": "Optional configuration for selecting a specific device using JSON path",
+            "additionalProperties": false
+          }
+        },
+        "description": "Configuration for executing CLI commands on network devices and capturing their output",
+        "additionalProperties": true
+      },
+      "failOnValidationErrors": true
+    }
+  },
+  "wfTags": [
+    "mopActivity",
+    "noExport"
+  ],
+  "formId": "cwm.forms.command-capture-cwm-sol",
+  "path": "",
+  "hashSum": "98869e7cdccdf10834bc65cfb773d093f2a890b526e880762ce91f58491112a9"
+}
