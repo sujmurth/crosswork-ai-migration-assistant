@@ -1,7 +1,7 @@
 {
   "workflowId": "2e951ecd-1769-4e9a-b728-d7bccfddfd61",
   "createdAt": "2026-07-17T16:30:07.22603Z",
-  "updatedAt": "2026-10-07T17:55:10.985312Z",
+  "updatedAt": "2026-10-14T14:46:22.083836Z",
   "name": "08.removeMPLS",
   "version": "1.0",
   "description": "Phase 8 (final): enumerate infrastructure devices and remove the MPLS/LDP transport via the remove-mpls-template golden config. Run ONLY after SRv6 cutover (LocPref 150) is verified with 0 traffic loss. Both transports coexist until this step, so rollback (LocPref->50) stays available right up to here.",
@@ -173,8 +173,8 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "MPLS",
-    "step-8"
+    "step-8",
+    "MPLS"
   ],
   "formId": "",
   "path": "",

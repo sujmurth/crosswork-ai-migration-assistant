@@ -1,7 +1,7 @@
 {
   "workflowId": "ac285d39-8efb-497a-888b-cf7317535925",
   "createdAt": "2026-07-17T16:30:07.22603Z",
-  "updatedAt": "2026-07-17T16:30:07.22603Z",
+  "updatedAt": "2026-10-14T14:46:15.412682Z",
   "name": "01.enableIPV6",
   "version": "1.0",
   "description": "Enumerate Network Infrastructure Devices and enable IPv6",
@@ -67,10 +67,10 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "IPv6",
-    "step-4"
+    "step-1",
+    "IPv6"
   ],
   "formId": "",
   "path": "",
-  "hashSum": "51db3df75b18bbea3bdaba88f1edc7f7d7e63d4986fc21aa1359407b9e16eb06"
+  "hashSum": "307396148cff707c7b7559f173370e823dde55f3ff2296d9edfc7276c9aa3ef9"
 }

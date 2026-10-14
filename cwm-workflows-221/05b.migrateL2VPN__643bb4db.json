@@ -1,7 +1,7 @@
 {
   "workflowId": "643bb4db-82ff-4244-abb3-ba100fc4b390",
   "createdAt": "2026-08-25T19:34:06.164673Z",
-  "updatedAt": "2026-10-08T08:02:32.413823Z",
+  "updatedAt": "2026-10-14T14:46:19.915635Z",
   "name": "05b.migrateL2VPN",
   "version": "1.0",
   "description": "Apply EVPN VPWS SRv6 golden-config to node-2 and node-4",
@@ -82,9 +82,9 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "SRv6-Migration",
-    "MOP",
-    "L2VPN"
+    "L2VPN",
+    "step-6",
+    "SRv6"
   ],
   "formId": "",
   "path": "",

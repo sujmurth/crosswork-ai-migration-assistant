@@ -1,7 +1,7 @@
 {
   "workflowId": "e5106cce-f01d-483b-a3c6-75108a02a3ea",
   "createdAt": "2026-07-17T16:30:07.22603Z",
-  "updatedAt": "2026-10-08T08:02:31.581314Z",
+  "updatedAt": "2026-10-14T14:46:19.070893Z",
   "name": "05.migrateL3VPN",
   "version": "1.0",
   "description": "Migrate an existing L3VPN service to SRv6",
@@ -206,8 +206,9 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "SRv6",
-    "NSO"
+    "step-5",
+    "L3VPN",
+    "SRv6"
   ],
   "formId": "",
   "path": "",

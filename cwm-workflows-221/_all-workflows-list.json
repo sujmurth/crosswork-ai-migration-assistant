@@ -121,8 +121,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "discovery",
       "srv6-migration",
+      "discovery",
       "portable"
     ],
     "formId": "",
@@ -132,7 +132,7 @@
   {
     "workflowId": "ac285d39-8efb-497a-888b-cf7317535925",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-07-17T16:30:07.22603Z",
+    "updatedAt": "2026-10-14T14:46:15.412682Z",
     "name": "01.enableIPV6",
     "version": "1.0",
     "description": "Enumerate Network Infrastructure Devices and enable IPv6",
@@ -198,17 +198,17 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "IPv6",
-      "step-4"
+      "step-1",
+      "IPv6"
     ],
     "formId": "",
     "path": "",
-    "hashSum": "51db3df75b18bbea3bdaba88f1edc7f7d7e63d4986fc21aa1359407b9e16eb06"
+    "hashSum": "307396148cff707c7b7559f173370e823dde55f3ff2296d9edfc7276c9aa3ef9"
   },
   {
     "workflowId": "783c1c81-d53c-44a2-b628-461322645be3",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-10-08T08:02:33.254525Z",
+    "updatedAt": "2026-10-14T14:46:16.471476Z",
     "name": "02.enableSRv6",
     "version": "1.0",
     "description": "Enumerate Network Infrastructure Devices and enable SRv6",
@@ -298,8 +298,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "SRv6",
-      "step-6"
+      "step-2",
+      "SRv6"
     ],
     "formId": "",
     "path": "",
@@ -308,7 +308,7 @@
   {
     "workflowId": "7c1b850d-ef91-4802-87cc-672435ac1e33",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-10-08T08:02:29.912581Z",
+    "updatedAt": "2026-10-14T14:46:17.400551Z",
     "name": "03.enableRRv6Peers",
     "version": "1.0",
     "description": "Enable RRv6 Setup and RRv6 Peer golden config payloads ",
@@ -503,7 +503,7 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "step-5",
+      "step-3",
       "RRv6"
     ],
     "formId": "",
@@ -513,7 +513,7 @@
   {
     "workflowId": "156c82b7-6a3f-484f-9146-c7cd068c0422",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-10-08T08:02:30.738036Z",
+    "updatedAt": "2026-10-14T14:46:18.257927Z",
     "name": "04a.createRRv6Policy-50",
     "version": "1.0",
     "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
@@ -590,9 +590,9 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "step-7h",
-      "RRv6",
-      "step-7a"
+      "step-4",
+      "dual-plane",
+      "RRv6"
     ],
     "formId": "",
     "path": "",
@@ -601,7 +601,7 @@
   {
     "workflowId": "e5106cce-f01d-483b-a3c6-75108a02a3ea",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-10-08T08:02:31.581314Z",
+    "updatedAt": "2026-10-14T14:46:19.070893Z",
     "name": "05.migrateL3VPN",
     "version": "1.0",
     "description": "Migrate an existing L3VPN service to SRv6",
@@ -806,7 +806,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "NSO",
+      "L3VPN",
+      "step-5",
       "SRv6"
     ],
     "formId": "",
@@ -816,7 +817,7 @@
   {
     "workflowId": "643bb4db-82ff-4244-abb3-ba100fc4b390",
     "createdAt": "2026-08-25T19:34:06.164673Z",
-    "updatedAt": "2026-10-08T08:02:32.413823Z",
+    "updatedAt": "2026-10-14T14:46:19.915635Z",
     "name": "05b.migrateL2VPN",
     "version": "1.0",
     "description": "Apply EVPN VPWS SRv6 golden-config to node-2 and node-4",
@@ -897,9 +898,9 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "SRv6-Migration",
+      "step-6",
       "L2VPN",
-      "MOP"
+      "SRv6"
     ],
     "formId": "",
     "path": "",
@@ -908,7 +909,7 @@
   {
     "workflowId": "d56dffb1-1547-40aa-881e-e345e72ba195",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-07-17T16:30:07.22603Z",
+    "updatedAt": "2026-10-14T14:46:20.874757Z",
     "name": "07.updateRRv6Policy",
     "version": "1.0",
     "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
@@ -974,18 +975,18 @@
       "specVersion": "0.8"
     },
     "wfTags": [
+      "cutover",
       "RRv6",
-      "step-7a",
-      "step-7h"
+      "step-7"
     ],
     "formId": "",
     "path": "",
-    "hashSum": "73e5d1e05b70a67843b494457b71f1881eba7ea6aa48e94161951b32bfc48de7"
+    "hashSum": "67c9014238f2a39fe8876a08869592407f45ffb0201c025dacf3630f540cf4e8"
   },
   {
     "workflowId": "2e951ecd-1769-4e9a-b728-d7bccfddfd61",
     "createdAt": "2026-07-17T16:30:07.22603Z",
-    "updatedAt": "2026-10-07T17:55:10.985312Z",
+    "updatedAt": "2026-10-14T14:46:22.083836Z",
     "name": "08.removeMPLS",
     "version": "1.0",
     "description": "Phase 8 (final): enumerate infrastructure devices and remove the MPLS/LDP transport via the remove-mpls-template golden config. Run ONLY after SRv6 cutover (LocPref 150) is verified with 0 traffic loss. Both transports coexist until this step, so rollback (LocPref->50) stays available right up to here.",
@@ -1991,9 +1992,9 @@
     },
     "wfTags": [
       "solution:SRv6-Migration",
+      "MOP",
       "SRv6-Migration",
       "orchestrator",
-      "MOP",
       "post-check",
       "pre-check"
     ],
@@ -3218,8 +3219,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -4325,8 +4326,8 @@
       }
     },
     "wfTags": [
-      "mopActivity",
-      "noExport"
+      "noExport",
+      "mopActivity"
     ],
     "formId": "cwm.forms.command-capture-cwm-sol",
     "path": "",
@@ -5170,10 +5171,10 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "default",
       "app:Device Onboard",
-      "vendor:Cisco Systems",
-      "noExport"
+      "default",
+      "noExport",
+      "vendor:Cisco Systems"
     ],
     "formId": "",
     "path": "",
@@ -5424,8 +5425,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "RRv6",
-      "NSO"
+      "NSO",
+      "RRv6"
     ],
     "formId": "",
     "path": "",
@@ -7671,8 +7672,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "SRv6",
-      "NSO"
+      "NSO",
+      "SRv6"
     ],
     "formId": "",
     "path": "",
@@ -8344,8 +8345,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "NSO",
-      "devices"
+      "devices",
+      "NSO"
     ],
     "formId": "",
     "path": "",
@@ -10101,8 +10102,8 @@
       }
     },
     "wfTags": [
-      "mopActivity",
-      "noExport"
+      "noExport",
+      "mopActivity"
     ],
     "formId": "cwm.forms.install-commit-cwm-sol",
     "path": "",
@@ -11182,8 +11183,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -11773,8 +11774,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -12365,8 +12366,8 @@
       }
     },
     "wfTags": [
-      "mopActivity",
-      "noExport"
+      "noExport",
+      "mopActivity"
     ],
     "formId": "",
     "path": "",
@@ -14190,8 +14191,8 @@
       }
     },
     "wfTags": [
-      "mopActivity",
-      "noExport"
+      "noExport",
+      "mopActivity"
     ],
     "formId": "",
     "path": "",
@@ -14665,8 +14666,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -15200,8 +15201,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "cwm.forms.juniper-ping-cwm-sol",
     "path": "",
@@ -16292,8 +16293,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -16628,8 +16629,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -18095,8 +18096,8 @@
     },
     "wfTags": [
       "stage:activate",
-      "system",
-      "mop:1"
+      "mop:1",
+      "system"
     ],
     "formId": "",
     "path": "",
@@ -18313,9 +18314,9 @@
       "specVersion": "0.9"
     },
     "wfTags": [
+      "stage:commit",
       "system",
-      "mop:1",
-      "stage:commit"
+      "mop:1"
     ],
     "formId": "",
     "path": "",
@@ -20650,9 +20651,9 @@
       "specVersion": "0.9"
     },
     "wfTags": [
-      "system",
       "mop:1",
-      "stage:pre"
+      "stage:pre",
+      "system"
     ],
     "formId": "",
     "path": "",
@@ -20869,9 +20870,9 @@
       "specVersion": "0.9"
     },
     "wfTags": [
-      "system",
+      "mop:2",
       "stage:activate",
-      "mop:2"
+      "system"
     ],
     "formId": "",
     "path": "",
@@ -21299,8 +21300,8 @@
     },
     "wfTags": [
       "system",
-      "mop:2",
-      "stage:distribute"
+      "stage:distribute",
+      "mop:2"
     ],
     "formId": "",
     "path": "",
@@ -22043,8 +22044,8 @@
     },
     "wfTags": [
       "stage:post",
-      "system",
-      "mop:2"
+      "mop:2",
+      "system"
     ],
     "formId": "",
     "path": "",
@@ -23006,8 +23007,8 @@
     },
     "wfTags": [
       "stage:activate",
-      "mop:3",
-      "system"
+      "system",
+      "mop:3"
     ],
     "formId": "",
     "path": "",
@@ -23434,8 +23435,8 @@
       "specVersion": "0.9"
     },
     "wfTags": [
-      "mop:3",
       "system",
+      "mop:3",
       "stage:distribute"
     ],
     "formId": "",
@@ -25027,9 +25028,9 @@
       "specVersion": "0.9"
     },
     "wfTags": [
-      "system",
       "stage:pre",
-      "mop:3"
+      "mop:3",
+      "system"
     ],
     "formId": "",
     "path": "",
@@ -25246,9 +25247,9 @@
       "specVersion": "0.9"
     },
     "wfTags": [
+      "mop:4",
       "system",
-      "stage:configuration",
-      "mop:4"
+      "stage:configuration"
     ],
     "formId": "",
     "path": "",
@@ -25894,8 +25895,8 @@
       "specVersion": "0.9"
     },
     "wfTags": [
-      "stage:activate",
       "system",
+      "stage:activate",
       "mop:6"
     ],
     "formId": "",
@@ -26437,8 +26438,8 @@
       "specVersion": "0.9"
     },
     "wfTags": [
-      "mop:6",
       "system",
+      "mop:6",
       "stage:distribute"
     ],
     "formId": "",
@@ -27182,8 +27183,8 @@
     },
     "wfTags": [
       "system",
-      "stage:post",
-      "mop:6"
+      "mop:6",
+      "stage:post"
     ],
     "formId": "",
     "path": "",
@@ -28952,8 +28953,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "",
     "path": "",
@@ -31564,8 +31565,8 @@
       }
     },
     "wfTags": [
-      "noExport",
-      "mopActivity"
+      "mopActivity",
+      "noExport"
     ],
     "formId": "cwm.forms.ping-cwm-sol",
     "path": "",
@@ -32086,10 +32087,10 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "golden-config",
-      "step-8",
       "removeMPLS",
-      "SRv6-Migration"
+      "SRv6-Migration",
+      "step-8",
+      "golden-config"
     ],
     "formId": "",
     "path": "",
@@ -32955,8 +32956,8 @@
       }
     },
     "wfTags": [
-      "mopActivity",
-      "noExport"
+      "noExport",
+      "mopActivity"
     ],
     "formId": "",
     "path": "",
@@ -35212,8 +35213,8 @@
       "specVersion": "0.8"
     },
     "wfTags": [
-      "NSO",
-      "RRv6"
+      "RRv6",
+      "NSO"
     ],
     "formId": "",
     "path": "",
@@ -36138,8 +36139,8 @@
       }
     },
     "wfTags": [
-      "mopActivity",
-      "noExport"
+      "noExport",
+      "mopActivity"
     ],
     "formId": "",
     "path": "",
@@ -37598,9 +37599,9 @@
       "specVersion": "0.8"
     },
     "wfTags": [
+      "post-check",
       "SRv6-Migration",
       "validation",
-      "post-check",
       "pre-check"
     ],
     "formId": "",

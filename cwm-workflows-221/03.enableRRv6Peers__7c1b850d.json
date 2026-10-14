@@ -1,7 +1,7 @@
 {
   "workflowId": "7c1b850d-ef91-4802-87cc-672435ac1e33",
   "createdAt": "2026-07-17T16:30:07.22603Z",
-  "updatedAt": "2026-10-08T08:02:29.912581Z",
+  "updatedAt": "2026-10-14T14:46:17.400551Z",
   "name": "03.enableRRv6Peers",
   "version": "1.0",
   "description": "Enable RRv6 Setup and RRv6 Peer golden config payloads ",
@@ -196,8 +196,8 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "RRv6",
-    "step-5"
+    "step-3",
+    "RRv6"
   ],
   "formId": "",
   "path": "",

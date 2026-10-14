@@ -1,7 +1,7 @@
 {
   "workflowId": "156c82b7-6a3f-484f-9146-c7cd068c0422",
   "createdAt": "2026-07-17T16:30:07.22603Z",
-  "updatedAt": "2026-10-08T08:02:30.738036Z",
+  "updatedAt": "2026-10-14T14:46:18.257927Z",
   "name": "04a.createRRv6Policy-50",
   "version": "1.0",
   "description": "Enumerate Network Infrastructure Devices and update RRv6 Route Policy",
@@ -78,9 +78,9 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "step-7a",
+    "step-4",
     "RRv6",
-    "step-7h"
+    "dual-plane"
   ],
   "formId": "",
   "path": "",

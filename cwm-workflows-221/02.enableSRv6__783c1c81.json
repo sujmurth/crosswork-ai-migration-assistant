@@ -1,7 +1,7 @@
 {
   "workflowId": "783c1c81-d53c-44a2-b628-461322645be3",
   "createdAt": "2026-07-17T16:30:07.22603Z",
-  "updatedAt": "2026-10-08T08:02:33.254525Z",
+  "updatedAt": "2026-10-14T14:46:16.471476Z",
   "name": "02.enableSRv6",
   "version": "1.0",
   "description": "Enumerate Network Infrastructure Devices and enable SRv6",
@@ -91,7 +91,7 @@
     "specVersion": "0.8"
   },
   "wfTags": [
-    "step-6",
+    "step-2",
     "SRv6"
   ],
   "formId": "",
