@@ -59,5 +59,3 @@ cd cwai-mcp-rag/cwai-docs-rag && bash run.sh && cwaictl mcp remote add --from-fi
 - `SRv6-Migration-MOP` + `00.discoverServices`: validated on a live CNC (no‑commit dry‑run).
 - RAG MCP (`rag_search_cisco_docs`): deployable; registered via `cwaictl mcp remote add`.
 
----
-*Snapshot generated 2026‑10‑12. Credentials scrubbed for publication.*
